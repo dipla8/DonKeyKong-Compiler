@@ -1,29 +1,51 @@
-/*	DKK lexer for CPP	*/
+
 %{
-#include <stdio.h>
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <string.h>
+
+    #define T_EOF 0
+    #define MAX_STRING_SIZE 509
+
+    char st[MAX_STRING_SIZE];
+    char *stp;
+    char s[MAX_ID_SIZE];
+    
 %}
+
 %option noyywrap
+%option yylineno
 %option case-insensitive
+
+%x STR COMMENT
+
+LETTER [A-Z]
 DIGIT [0-9]
-DIGITNOZ [1-9]
-ALPHA [a-z]
-ALPHANUM [a-z0-9]
+DIGIT1 [1-9]
+ALPHAR [A-Z0-9]
 HEX [0-9A-F]
-HEXNOZ [1-9A-F]
-BINARY [0-1]
-PRINTABLE [\x20-\x7e]
-PRINT_WITHOUT [\x20\x21\x23-\x5b\x5d-\x7e]
-ESC_SEQ   \\[\"\\/bfnrtv]
+HEX1 [1-9A-F]
+BIN [01]
+PRINTABLE [\x20-\x7E]
+PRINTABLE_STR [\x20\x21\x23-\x5B\x5D-\x7E]
+ESC_SEQ \\[\"\\/bfnrtv"]
+ALTWHITE \\[\n\r]
 WHITE [ \n\r]
-ALTWHITE \\[ \n\r]
+
 %%
-TYPEDEF|CHAR|INT|FLOAT|CONST|UNION|CLASS|PRIVATE|PROTECTED|PUBLIC|STATIC|VOID|LIST|CONTINUE|BREAK|THIS|IF|ELSE|WHILE|FOR|RETURN|LENGTH|NEW|CIN|COUT|MAIN {printf("keyword is %s\n",yytext);}
+"typedef"|"char"|"int"|"float"|"const"|"union"|"class"|"private"|"protected"|"public"|"static"|"void"|"list"|"continue"|"break"|"this"|"if"|"else"|"while"|"for"|"return"|"length"|"new"|"cin"|"cout"|"main" { printf("keyword is %s\n", yytext); }
 
-("\/*"{PRINTABLE}*"*\/"|"\/\/"{PRINTABLE}) printf("COMMENT detected\n");
+"/*"                {BEGIN(COMMENT);}
+<COMMENT>"*/"       {printf("/*...*/ comment detected\n"); BEGIN(INITIAL);}
+<COMMENT>\n         {yylineno++;}
+<COMMENT>.          ;
+<COMMENT><<EOF>>    {printf("unterminated comment\n"); return T_EOF;}
 
-("0"|{DIGITNOZ}{DIGIT}*|"0""H"{HEXNOZ}{HEX}*|"0""B""1"{BINARY}*) {printf("ICONST detected %s\n", yytext);}
+"//"{PRINTABLE}* {printf("// comment detected\n");}
 
-(({DIGITNOZ}{DIGIT}*)?"."("0"|"0"+{DIGITNOZ}+|{DIGITNOZ}{DIGIT}+|{DIGITNOZ}+)("E"([+-])?("0"|{DIGITNOZ}{DIGIT}*))?|{DIGITNOZ}{DIGIT}*"E"([+-]?)("0"|{DIGITNOZ}{DIGIT}*)|"0H"({HEXNOZ}{HEX}*)?"."{HEX}+|"0B"("1"{BINARY}*)?"."{BINARY}+) {printf("FCONST detected %s\n", yytext);}
+("0"|({DIGIT1}{DIGIT}*)|("0H"{HEX1}{HEX}*)|("0B1"{BIN}*)) {printf("ICONST detected %s\n", yytext);}
+
+(({DIGIT1}{DIGIT}*)?"."("0"|"0"+{DIGIT1}+|{DIGIT1}{DIGIT}+|{DIGIT1}+)("E"([+-])?("0"|{DIGIT1}{DIGIT}*))?|{DIGIT1}{DIGIT}*"E"([+-]?)("0"|{DIGIT1}{DIGIT}*)|"0H"({HEX1}{HEX}*)?"."{HEX}+|"0B"("1"{BIN}*)?"."{BIN}+) {printf("FCONST detected %s\n", yytext);}
 
 ("'"{PRINTABLE}"'"|"'""\\"[nftrbv]"'") {printf("CCONST detected %s\n", yytext);}
 
@@ -39,7 +61,19 @@ TYPEDEF|CHAR|INT|FLOAT|CONST|UNION|CLASS|PRIVATE|PROTECTED|PUBLIC|STATIC|VOID|LI
 
 "C"("A""D"*|"D"+)"R" {printf("LISTFUNC detected %s\n", yytext);}
 
-(["]({PRINT_WITHOUT}*{ESC_SEQ}*{ALTWHITE}*)*["]) {printf("STRING detected %s\n", yytext);}
+\"         {BEGIN(STR); stp = st}
+<STR>[^\\\"\n]* {
+                    char *yytp = yytext;
+                    if ()
+}
+<STR>"\\n"      {
+
+                    if (stp == &st[MAX_STRING_SIZE -1]) {
+                        printf("Line %d: ")
+                    }
+}
+
+\"({PRINTABLE_STR}*{ESC_SEQ}*{ALTWHITE}*)*\" {printf("STRING detected %s\n", yytext);}
 
 "(" {printf("LPAREN\n");}
 ")" {printf("RPAREN\n");}
@@ -58,8 +92,10 @@ TYPEDEF|CHAR|INT|FLOAT|CONST|UNION|CLASS|PRIVATE|PROTECTED|PUBLIC|STATIC|VOID|LI
 "<<" {printf("OUT\n");}
 "EOF" {printf("EOF\n");}
 
-"_"*{ALPHA}+({ALPHA}*"_"?{ALPHANUM}+)* {printf("ID detected %s\n", yytext);}
+"_"*{LETTER}+({LETTER}*"_"?{ALPHAR}+)* {printf("ID detected %s\n", yytext);}
+
 %%
-int main(){
-	yylex();
+
+int main( int argc, char **argv ) {
+    yylex();
 }
