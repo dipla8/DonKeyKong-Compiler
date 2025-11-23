@@ -18,7 +18,7 @@ TYPEDEF|CHAR|INT|FLOAT|CONST|UNION|CLASS|PRIVATE|PROTECTED|PUBLIC|STATIC|VOID|LI
 
 ("0"|{DIGITNOZ}{DIGIT}*|"0""H"{HEXNOZ}{HEX}*|"0""B""1"{BINARY}*) {printf("ICONST detected %s\n", yytext);}
 
-(({DIGITNOZ}{DIGIT}*)?"."{DIGIT}+|({DIGITNOZ}{DIGIT})?*"E"([+-]?){DIGITNOZ}{DIGIT}*|"0H"({HEXNOZ}{HEX}*)?"."{HEX}+|"0B"("1"{BINARY}*)?"."{BINARY}+) {printf("FCONST detected %s", yytext);}
+(({DIGITNOZ}{DIGIT}*)?"."{DIGIT}+|({DIGITNOZ}{DIGIT}*)?"E"([+-]?){DIGITNOZ}{DIGIT}*|"0H"({HEXNOZ}{HEX}*)?"."{HEX}+|"0B"("1"{BINARY}*)?"."{BINARY}+) {printf("FCONST detected %s", yytext);}
 %%
 int main(){
 	yylex();
