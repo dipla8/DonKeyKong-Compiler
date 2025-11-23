@@ -8,9 +8,7 @@
     #define MAX_STRING_SIZE 509
 
     char st[MAX_STRING_SIZE];
-    char *stp;
-    char s[MAX_ID_SIZE];
-    
+    char *stp;    
 %}
 
 %option noyywrap
@@ -61,19 +59,79 @@ WHITE [ \n\r]
 
 "C"("A""D"*|"D"+)"R" {printf("LISTFUNC detected %s\n", yytext);}
 
-\"         {BEGIN(STR); stp = st}
+\"              {BEGIN(STR); stp = st;}
 <STR>[^\\\"\n]* {
-                    char *yytp = yytext;
-                    if ()
+            char *yytp = yytext;
+            if (stp + yyleng > &st[MAX_STRING_SIZE - 1]) {
+                printf("String overflow.\n");
+                return T_EOF;
+            }
+            while (*yytp) *stp++ = *yytp++;
 }
 <STR>"\\n"      {
-
-                    if (stp == &st[MAX_STRING_SIZE -1]) {
-                        printf("Line %d: ")
-                    }
+            if (stp == &st[MAX_STRING_SIZE - 1]) {
+                printf("String overflow.\n");
+                return T_EOF;
+            }
+            yylineno++;
+            *stp++ = '\n';
 }
-
-\"({PRINTABLE_STR}*{ESC_SEQ}*{ALTWHITE}*)*\" {printf("STRING detected %s\n", yytext);}
+<STR>"\\r"      {
+            if (stp == &st[MAX_STRING_SIZE - 1]) {
+                printf("String overflow.\n");
+                return T_EOF;
+            }
+            yylineno++;
+            *stp++ = '\r';
+}
+<STR>"\\t"      {
+            if (stp == &st[MAX_STRING_SIZE - 1]) {
+                printf("String overflow.\n");
+                return T_EOF;
+            }
+            *stp++ = '\t';
+}
+<STR>"\\f"      {
+            if (stp == &st[MAX_STRING_SIZE - 1]) {
+                printf("String overflow.\n");
+                return T_EOF;
+            }
+            *stp++ = '\f';
+}
+<STR>"\\b"      {
+            if (stp == &st[MAX_STRING_SIZE - 1]) {
+                printf("String overflow.\n");
+                return T_EOF;
+            }
+            *stp++ = '\b';
+}
+<STR>"\\v"      {
+            if (stp == &st[MAX_STRING_SIZE - 1]) {
+                printf("String overflow.\n");
+                return T_EOF;
+            }
+            *stp++ = '\v';
+}
+<STR>"\\".      {
+            if (stp == &st[MAX_STRING_SIZE - 1]) {
+                printf("String overflow.\n");
+                return T_EOF;
+            }
+            *stp++ = yytext[1];
+}
+<STR>"\\\n"     ;
+<STR>\"         {
+            *stp = '\0';
+            BEGIN(INITIAL);
+            //yylval.str = strdup(st);
+            printf("STRING detected %s.\n", st);
+            //return T_STRING;
+}
+<STR>"\n" |
+<STR><<EOF>>    {
+            printf("Reacher EOF.\n");
+            //return T_EOF;
+}
 
 "(" {printf("LPAREN\n");}
 ")" {printf("RPAREN\n");}
