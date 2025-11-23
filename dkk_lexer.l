@@ -11,6 +11,7 @@ ALPHANUM [a-z0-9]
 HEX [0-9A-F]
 HEXNOZ [1-9A-F]
 BINARY [0-1]
+PRINTABLE[\x20-\x7e]
 %%
 TYPEDEF|CHAR|INT|FLOAT|CONST|UNION|CLASS|PRIVATE|PROTECTED|PUBLIC|STATIC|VOID|LIST|CONTINUE|BREAK|THIS|IF|ELSE|WHILE|FOR|RETURN|LENGTH|NEW|CIN|COUT|MAIN {printf("keyword is %s\n",yytext);}
 
@@ -28,6 +29,9 @@ TYPEDEF|CHAR|INT|FLOAT|CONST|UNION|CLASS|PRIVATE|PROTECTED|PUBLIC|STATIC|VOID|LI
 "!" {printf("NOTOP detected");}
 ("++"|"--") {printf("INCDEC detected");}
 "SIZEOF" {printf("SIZEOP detected");}
+
+"C"("A""D"*|"D"+)"R" {printf("LISTFUNC detected %s", yytext);}
+
 
 "_"*{ALPHA}+({ALPHA}*"_"?{ALPHANUM}+)* {printf("ID detected %s\n", yytext);}
 
