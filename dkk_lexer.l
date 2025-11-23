@@ -14,6 +14,8 @@ BINARY [0-1]
 PRINTABLE [\x20-\x7e]
 PRINT_WITHOUT [\x20\x21\x23-\x5b\x5d-\x7e]
 ESC_SEQ   \\[\"\\/bfnrtv]
+WHITE [ \n\r]
+ALTWHITE \\[ \n\r]
 %%
 TYPEDEF|CHAR|INT|FLOAT|CONST|UNION|CLASS|PRIVATE|PROTECTED|PUBLIC|STATIC|VOID|LIST|CONTINUE|BREAK|THIS|IF|ELSE|WHILE|FOR|RETURN|LENGTH|NEW|CIN|COUT|MAIN {printf("keyword is %s\n",yytext);}
 
@@ -37,7 +39,7 @@ TYPEDEF|CHAR|INT|FLOAT|CONST|UNION|CLASS|PRIVATE|PROTECTED|PUBLIC|STATIC|VOID|LI
 
 "C"("A""D"*|"D"+)"R" {printf("LISTFUNC detected %s\n", yytext);}
 
-(["]({PRINT_WITHOUT}*{ESC_SEQ}*)*["]) {printf("STRING detected %s\n", yytext);}
+(["]({PRINT_WITHOUT}*{ESC_SEQ}*{ALTWHITE}*)*["]) {printf("STRING detected %s\n", yytext);}
 
 "(" {printf("LPAREN\n");}
 ")" {printf("RPAREN\n");}
