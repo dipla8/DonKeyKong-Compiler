@@ -37,7 +37,7 @@ TYPEDEF|CHAR|INT|FLOAT|CONST|UNION|CLASS|PRIVATE|PROTECTED|PUBLIC|STATIC|VOID|LI
 
 "C"("A""D"*|"D"+)"R" {printf("LISTFUNC detected %s\n", yytext);}
 
-(["]{PRINT_WITHOUT}*{ESC_SEQ}*["]) {printf("STRING detected %s\n", yytext);}
+(["]({PRINT_WITHOUT}*{ESC_SEQ}*)*["]) {printf("STRING detected %s\n", yytext);}
 
 "(" {printf("LPAREN\n");}
 ")" {printf("RPAREN\n");}
