@@ -19,16 +19,17 @@ TYPEDEF|CHAR|INT|FLOAT|CONST|UNION|CLASS|PRIVATE|PROTECTED|PUBLIC|STATIC|VOID|LI
 
 (({DIGITNOZ}{DIGIT}*)?"."("0"|"0"+{DIGITNOZ}+|{DIGITNOZ}{DIGIT}+|{DIGITNOZ}+)("E"([+-])?("0"|{DIGITNOZ}{DIGIT}*))?|{DIGITNOZ}{DIGIT}*"E"([+-]?)("0"|{DIGITNOZ}{DIGIT}*)|"0H"({HEXNOZ}{HEX}*)?"."{HEX}+|"0B"("1"{BINARY}*)?"."{BINARY}+) {printf("FCONST detected %s\n", yytext);}
 
-("'"{ALPHANUM}"'"|"'""\\"[nftrbv]"'") {printf("CCONST detected %s\n", yytext);}
+("'"{PRINTABLE}"'"|"'""\\"[nftrbv]"'") {printf("CCONST detected %s\n", yytext);}
 
-"||" {printf("OROP detected");}
-"&&" {printf("ANDOP detected");}
-"==" {printf("RELOP detected");}
-("+"|"-") {printf("ADDOP detected");}
-"*" {printf("MULOP detected");}
-"!" {printf("NOTOP detected");}
-("++"|"--") {printf("INCDEC detected");}
-"SIZEOF" {printf("SIZEOP detected");}
+"||" {printf("OROP detected\n");}
+"&&" {printf("ANDOP detected\n");}
+"=="|"!=" {printf("EQUOP detected\n");}
+">"|">="|"<"|"<=" {printf("RELOP detected\n");}
+[+-] {printf("ADDOP detected\n");}
+[*/%] {printf("MULOP detected\n");}
+"!" {printf("NOTOP detected\n");}
+("++"|"--") {printf("INCDEC detected\n");}
+"SIZEOF" {printf("SIZEOP detected\n");}
 
 "C"("A""D"*|"D"+)"R" {printf("LISTFUNC detected %s", yytext);}
 
