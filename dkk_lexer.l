@@ -18,29 +18,55 @@
 
 %x STR COMMENT
 
-LETTER [A-Z]
-DIGIT [0-9]
-DIGIT1 [1-9]
-ALPHAR [A-Z0-9]
-HEX [0-9A-F]
-HEX1 [1-9A-F]
-BIN [01]
-PRINTABLE [\x20-\x7E]
-ID "_"*{LETTER}+({LETTER}*"_"?{ALPHAR}+)*
-ICONST ("0"|({DIGIT1}{DIGIT}*)|("0H"{HEX1}{HEX}*)|("0B1"{BIN}*))
-FCONST (({DIGIT1}{DIGIT}*)?"."("0"|"0"+{DIGIT1}+|{DIGIT1}{DIGIT}+|{DIGIT1}+)("E"([+-])?("0"|{DIGIT1}{DIGIT}*))?|{DIGIT1}{DIGIT}*"E"([+-]?)("0"|{DIGIT1}{DIGIT}*)|"0H"({HEX1}{HEX}*)?"."{HEX}+|"0B"("1"{BIN}*)?"."{BIN}+)
-CCONST ("'"{PRINTABLE}"'"|"'""\\"[nftrbv]"'")
-LCOMMENT \/\/.*
-LISTFUNC "C"("A""D"*|"D"+)"R"
-WHITE [ \t\r\f\v]
-WS {WHITE}+
-NEWLINE \n
+LETTER      [A-Z]
+DIGIT       [0-9]
+DIGIT1      [1-9]
+ALPHAR      [A-Z0-9]
+HEX         [0-9A-F]
+HEX1        [1-9A-F]
+BIN         [01]
+PRINTABLE   [\x20-\x7E]
+ID          "_"*{LETTER}+({LETTER}*"_"?{ALPHAR}+)*
+ICONST      ("0"|({DIGIT1}{DIGIT}*)|("0H"{HEX1}{HEX}*)|("0B1"{BIN}*))
+FCONST      (({DIGIT1}{DIGIT}*)?"."("0"|"0"+{DIGIT1}+|{DIGIT1}{DIGIT}+|{DIGIT1}+)("E"([+-])?("0"|{DIGIT1}{DIGIT}*))?|{DIGIT1}{DIGIT}*"E"([+-]?)("0"|{DIGIT1}{DIGIT}*)|"0H"({HEX1}{HEX}*)?"."{HEX}+|"0B"("1"{BIN}*)?"."{BIN}+)
+CCONST      ("'"{PRINTABLE}"'"|"'""\\"[nftrbv]"'")
+LCOMMENT    \/\/.*
+LISTFUNC    "C"("A""D"*|"D"+)"R"
+WHITE       [ \t\r\f\v]
+WS          {WHITE}+
+NEWLINE     \n
 
 %%
 
 {WS}          ;
 {NEWLINE}     {yylineno++;}
-"typedef"|"char"|"int"|"float"|"const"|"union"|"class"|"private"|"protected"|"public"|"static"|"void"|"list"|"continue"|"break"|"this"|"if"|"else"|"while"|"for"|"return"|"length"|"new"|"cin"|"cout"|"main" { printf("keyword is %s\n", yytext); }
+
+TYPEDEF     { return T_TYPEDEF;}
+CHAR        { return T_CHAR;}
+INT         { return T_INT;}
+FLOAT       { return T_FLOAT;}
+CONST       { return T_CONST;}
+UNION       { return T_UNION;}
+CLASS       { return T_CLASS;}
+PRIVATE     { return T_PRIVATE;}
+PROTECTED   { return T_PROTECTED;}
+PUBLIC      { return T_PUBLIC;}
+STATIC      { return T_STATIC;}
+VOID        { return T_VOID;}
+LIST        { return T_LIST;}
+CONTINUE    { return T_CONTINUE;}
+BREAK       { return T_BREAK;}
+THIS        { return T_THIS;}
+IF          { return T_IF;}
+ELSE        { return T_ELSE;} 
+WHILE       { return T_WHILE;}
+FOR         { return T_FOR;}
+RETURN      { return T_RETURN;}
+LENGTH      { return T_LENGTH;}
+NEW         { return T_NEW;}
+CIN         { return T_CIN;}
+COUT        { return T_COUT;}
+MAIN        { return T_MAIN;}
 
 "/*"                {BEGIN(COMMENT);}
 <COMMENT>"*/"       {printf("/*...*/ comment detected\n"); BEGIN(INITIAL);}
@@ -48,22 +74,30 @@ NEWLINE \n
 <COMMENT>.          ;
 <COMMENT><<EOF>>    {printf("unterminated comment\n"); return T_EOF;}
 
-{LCOMMENT} {printf("// comment detected\n");}
+{LCOMMENT}  {printf("// comment detected\n");}
 
-{ICONST} {printf("ICONST detected %s\n", yytext);}
+{ICONST}    {printf("ICONST detected %s\n", yytext);}
 
-{FCONST} {printf("FCONST detected %s\n", yytext);}
+{FCONST}    {printf("FCONST detected %s\n", yytext);}
 
-{CCONST} {printf("CCONST detected %s\n", yytext);}
+{CCONST}    {printf("CCONST detected %s\n", yytext);}
 
-"||" {printf("OROP detected\n");}
-"&&" {printf("ANDOP detected\n");}
-"=="|"!=" {printf("EQUOP detected\n");}
-">"|">="|"<"|"<=" {printf("RELOP detected\n");}
-("++"|"--") {printf("INCDEC detected\n");}
-[+-] {printf("ADDOP detected\n");}
-[*/%] {printf("MULOP detected\n");}
-"!" {printf("NOTOP detected\n");}
+"||"     {printf("OROP detected\n");}
+"&&"     {printf("ANDOP detected\n");}
+"=="     {printf("EQUOP detected\n");}
+"!="     {printf("EQUOP detected\n");}
+">"      {printf("RELOP detected\n");}
+">="     {printf("RELOP detected\n");}
+"<"      {printf("RELOP detected\n");}
+"<="     {printf("RELOP detected\n");}
+"++"     {printf("INCDEC detected\n");}
+"--"     {printf("INCDEC detected\n");}
+\+       {printf("MULOP detected\n");}
+\-       {printf("ADDOP detected\n");}
+\*       {printf("MULOP detected\n");}
+\/       {printf("MULOP detected\n");}
+\%       {printf("MULOP detected\n");}
+\!       {printf("NOTOP detected\n");}
 "SIZEOF" {printf("SIZEOP detected\n");}
 
 {LISTFUNC} {printf("LISTFUNC detected %s\n", yytext);}
