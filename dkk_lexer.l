@@ -7,6 +7,7 @@
     #define T_EOF 0
     #define MAX_STRING_SIZE 509
 
+
     char st[MAX_STRING_SIZE];
     char *stp;    
 %}
@@ -25,12 +26,20 @@ HEX [0-9A-F]
 HEX1 [1-9A-F]
 BIN [01]
 PRINTABLE [\x20-\x7E]
-PRINTABLE_STR [\x20\x21\x23-\x5B\x5D-\x7E]
-ESC_SEQ \\[\"\\/bfnrtv"]
-ALTWHITE \\[\n\r]
-WHITE [ \n\r]
+ID "_"*{LETTER}+({LETTER}*"_"?{ALPHAR}+)*
+ICONST ("0"|({DIGIT1}{DIGIT}*)|("0H"{HEX1}{HEX}*)|("0B1"{BIN}*))
+FCONST (({DIGIT1}{DIGIT}*)?"."("0"|"0"+{DIGIT1}+|{DIGIT1}{DIGIT}+|{DIGIT1}+)("E"([+-])?("0"|{DIGIT1}{DIGIT}*))?|{DIGIT1}{DIGIT}*"E"([+-]?)("0"|{DIGIT1}{DIGIT}*)|"0H"({HEX1}{HEX}*)?"."{HEX}+|"0B"("1"{BIN}*)?"."{BIN}+)
+CCONST ("'"{PRINTABLE}"'"|"'""\\"[nftrbv]"'")
+LCOMMENT \/\/.*
+LISTFUNC "C"("A""D"*|"D"+)"R"
+WHITE [ \t\r\f\v]
+WS {WHITE}+
+NEWLINE \n
 
 %%
+
+{WS}          ;
+{NEWLINE}     {yylineno++;}
 "typedef"|"char"|"int"|"float"|"const"|"union"|"class"|"private"|"protected"|"public"|"static"|"void"|"list"|"continue"|"break"|"this"|"if"|"else"|"while"|"for"|"return"|"length"|"new"|"cin"|"cout"|"main" { printf("keyword is %s\n", yytext); }
 
 "/*"                {BEGIN(COMMENT);}
@@ -39,25 +48,25 @@ WHITE [ \n\r]
 <COMMENT>.          ;
 <COMMENT><<EOF>>    {printf("unterminated comment\n"); return T_EOF;}
 
-"//"{PRINTABLE}* {printf("// comment detected\n");}
+{LCOMMENT} {printf("// comment detected\n");}
 
-("0"|({DIGIT1}{DIGIT}*)|("0H"{HEX1}{HEX}*)|("0B1"{BIN}*)) {printf("ICONST detected %s\n", yytext);}
+{ICONST} {printf("ICONST detected %s\n", yytext);}
 
-(({DIGIT1}{DIGIT}*)?"."("0"|"0"+{DIGIT1}+|{DIGIT1}{DIGIT}+|{DIGIT1}+)("E"([+-])?("0"|{DIGIT1}{DIGIT}*))?|{DIGIT1}{DIGIT}*"E"([+-]?)("0"|{DIGIT1}{DIGIT}*)|"0H"({HEX1}{HEX}*)?"."{HEX}+|"0B"("1"{BIN}*)?"."{BIN}+) {printf("FCONST detected %s\n", yytext);}
+{FCONST} {printf("FCONST detected %s\n", yytext);}
 
-("'"{PRINTABLE}"'"|"'""\\"[nftrbv]"'") {printf("CCONST detected %s\n", yytext);}
+{CCONST} {printf("CCONST detected %s\n", yytext);}
 
 "||" {printf("OROP detected\n");}
 "&&" {printf("ANDOP detected\n");}
 "=="|"!=" {printf("EQUOP detected\n");}
 ">"|">="|"<"|"<=" {printf("RELOP detected\n");}
+("++"|"--") {printf("INCDEC detected\n");}
 [+-] {printf("ADDOP detected\n");}
 [*/%] {printf("MULOP detected\n");}
 "!" {printf("NOTOP detected\n");}
-("++"|"--") {printf("INCDEC detected\n");}
 "SIZEOF" {printf("SIZEOP detected\n");}
 
-"C"("A""D"*|"D"+)"R" {printf("LISTFUNC detected %s\n", yytext);}
+{LISTFUNC} {printf("LISTFUNC detected %s\n", yytext);}
 
 \"              {BEGIN(STR); stp = st;}
 <STR>[^\\\"\n]* {
@@ -150,7 +159,7 @@ WHITE [ \n\r]
 "<<" {printf("OUT\n");}
 "EOF" {printf("EOF\n");}
 
-"_"*{LETTER}+({LETTER}*"_"?{ALPHAR}+)* {printf("ID detected %s\n", yytext);}
+{ID} {printf("ID detected %s\n", yytext);}
 
 %%
 
