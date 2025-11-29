@@ -1,3 +1,4 @@
 all:
+	bison -v -d dkk.y
 	flex dkk_lexer.l
-	gcc lex.yy.c -o lexer
+	gcc dkk.tab.c lex.yy.c -o xovl
