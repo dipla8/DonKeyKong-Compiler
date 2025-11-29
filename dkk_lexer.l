@@ -3,11 +3,13 @@
     #include <stdio.h>
     #include <stdlib.h>
     #include <string.h>
-
+    #include "dkk.tab.h"
     #define T_EOF 0
     #define MAX_STRING_SIZE 509
 
-
+//    YYSTYPE yylval;
+    int iconvert();
+    float fconvert();
     char st[MAX_STRING_SIZE];
     char *stp;    
 %}
@@ -41,66 +43,66 @@ NEWLINE     \n
 {WS}          ;
 {NEWLINE}     {yylineno++;}
 
-TYPEDEF     { return T_TYPEDEF;}
-CHAR        { return T_CHAR;}
-INT         { return T_INT;}
-FLOAT       { return T_FLOAT;}
-CONST       { return T_CONST;}
-UNION       { return T_UNION;}
-CLASS       { return T_CLASS;}
-PRIVATE     { return T_PRIVATE;}
-PROTECTED   { return T_PROTECTED;}
-PUBLIC      { return T_PUBLIC;}
-STATIC      { return T_STATIC;}
-VOID        { return T_VOID;}
-LIST        { return T_LIST;}
-CONTINUE    { return T_CONTINUE;}
-BREAK       { return T_BREAK;}
-THIS        { return T_THIS;}
-IF          { return T_IF;}
-ELSE        { return T_ELSE;} 
-WHILE       { return T_WHILE;}
-FOR         { return T_FOR;}
-RETURN      { return T_RETURN;}
-LENGTH      { return T_LENGTH;}
-NEW         { return T_NEW;}
-CIN         { return T_CIN;}
-COUT        { return T_COUT;}
-MAIN        { return T_MAIN;}
+TYPEDEF     { return TYPEDEF;}
+CHAR        { return CHAR;}
+INT         { return INT;}
+FLOAT       { return FLOAT;}
+CONST       { return CONST;}
+UNION       { return UNION;}
+CLASS       { return CLASS;}
+PRIVATE     { return PRIVATE;}
+PROTECTED   { return PROTECTED;}
+PUBLIC      { return PUBLIC;}
+STATIC      { return STATIC;}
+VOID        { return VOID;}
+LIST        { return LIST;}
+CONTINUE    { return CONTINUE;}
+BREAK       { return BREAK;}
+THIS        { return THIS;}
+IF          { return IF;}
+ELSE        { return ELSE;} 
+WHILE       { return WHILE;}
+FOR         { return FOR;}
+RETURN      { return RETURN;}
+LENGTH      { return LENGTH;}
+NEW         { return NEW;}
+CIN         { return CIN;}
+COUT        { return COUT;}
+MAIN        { return MAIN;}
 
 "/*"                {BEGIN(COMMENT);}
 <COMMENT>"*/"       {printf("/*...*/ comment detected\n"); BEGIN(INITIAL);}
 <COMMENT>\n         {yylineno++;}
 <COMMENT>.          ;
-<COMMENT><<EOF>>    {printf("unterminated comment\n"); return T_EOF;}
+<COMMENT><<EOF>>    {printf("unterminated comment\n"); return EOF;}
 
 {LCOMMENT}  {printf("// comment detected\n");}
 
-{ICONST}    {printf("ICONST detected %s\n", yytext);}
+{ICONST}    {printf("ICONST detected %s\n", yytext); yylval.ival = iconvert(yytext); return ICONST;}
 
-{FCONST}    {printf("FCONST detected %s\n", yytext);}
+{FCONST}    {printf("FCONST detected %s\n", yytext); yylval.fval = fconvert(yytext); return FCONST;}
 
-{CCONST}    {printf("CCONST detected %s\n", yytext);}
+{CCONST}    {printf("CCONST detected %s\n", yytext); yylval.cval = yytext[0]; return CCONST;}
 
-"||"     {printf("OROP detected\n");}
-"&&"     {printf("ANDOP detected\n");}
-"=="     {printf("EQUOP detected\n");}
-"!="     {printf("EQUOP detected\n");}
-">"      {printf("RELOP detected\n");}
-">="     {printf("RELOP detected\n");}
-"<"      {printf("RELOP detected\n");}
-"<="     {printf("RELOP detected\n");}
-"++"     {printf("INCDEC detected\n");}
-"--"     {printf("INCDEC detected\n");}
-\+       {printf("MULOP detected\n");}
-\-       {printf("ADDOP detected\n");}
-\*       {printf("MULOP detected\n");}
-\/       {printf("MULOP detected\n");}
-\%       {printf("MULOP detected\n");}
-\!       {printf("NOTOP detected\n");}
-"SIZEOF" {printf("SIZEOP detected\n");}
+"||"     {printf("OROP detected\n"); return OROP;}
+"&&"     {printf("ANDOP detected\n"); return ANDOP;}
+"=="     {printf("EQUOP detected\n"); yylval.oper = 0; return EQUOP;}
+"!="     {printf("EQUOP detected\n"); yylval.oper = 1; return EQUOP;}
+">"      {printf("RELOP detected\n"); yylval.oper = 0; return RELOP;}
+">="     {printf("RELOP detected\n"); yylval.oper = 1; return RELOP;}
+"<"      {printf("RELOP detected\n"); yylval.oper = 2; return RELOP;}
+"<="     {printf("RELOP detected\n"); yylval.oper = 3; return RELOP;}
+"++"     {printf("INCDEC detected\n"); yylval.oper = 0; return INCDEC;}
+"--"     {printf("INCDEC detected\n"); yylval.oper = 1; return INCDEC;}
+\+       {printf("ADDOP detected\n"); yylval.oper = 0; return ADDOP;}
+\-       {printf("ADDOP detected\n"); yylval.oper = 1; return ADDOP;}
+\*       {printf("MULOP detected\n"); yylval.oper = 0; return MULOP;}
+\/       {printf("MULOP detected\n"); yylval.oper = 1; return MULOP;}
+\%       {printf("MULOP detected\n"); yylval.oper = 2; return MULOP;}
+\!       {printf("NOTOP detected\n"); return NOTOP;}
+"SIZEOF" {printf("SIZEOP detected\n"); return SIZEOP;}
 
-{LISTFUNC} {printf("LISTFUNC detected %s\n", yytext);}
+{LISTFUNC} {printf("LISTFUNC detected %s\n", yytext); yylval.str = strdup(yytext);}
 
 \"              {BEGIN(STR); stp = st;}
 <STR>[^\\\"\n]* {
@@ -166,37 +168,65 @@ MAIN        { return T_MAIN;}
 <STR>\"         {
             *stp = '\0';
             BEGIN(INITIAL);
-            //yylval.str = strdup(st);
+            yylval.str = strdup(st);
             printf("STRING detected %s.\n", st);
-            //return T_STRING;
+            return STRING;
 }
 <STR>"\n" |
 <STR><<EOF>>    {
             printf("Reacher EOF.\n");
-            //return T_EOF;
+            return T_EOF;
 }
 
-"(" {printf("LPAREN\n");}
-")" {printf("RPAREN\n");}
-";" {printf("SEMI\n");}
-"." {printf("DOT\n");}
-"," {printf("COMMA\n");}
-"=" {printf("ASSIGN\n");}
-":" {printf("COLON\n");}
-"[" {printf("LBRACK\n");}
-"]" {printf("RBRACK\n");}
-"&" {printf("REFER\n");}
-"{" {printf("LBRACE\n");}
-"}" {printf("RBRACE\n");}
-"::" {printf("METH\n");}
-">>" {printf("INP\n");}
-"<<" {printf("OUT\n");}
-"EOF" {printf("EOF\n");}
+"(" {printf("LPAREN\n"); return LPAREN;}
+")" {printf("RPAREN\n"); return RPAREN;}
+";" {printf("SEMI\n"); return SEMI;}
+"." {printf("DOT\n"); return DOT;}
+"," {printf("COMMA\n"); return COMMA;}
+"=" {printf("ASSIGN\n"); return ASSIGN;}
+":" {printf("COLON\n"); return COLON;}
+"[" {printf("LBRACK\n"); return LBRACK;}
+"]" {printf("RBRACK\n"); return RBRACK;}
+"&" {printf("REFER\n"); return REFER;}
+"{" {printf("LBRACE\n"); return LBRACE;}
+"}" {printf("RBRACE\n"); return RBRACE;}
+"::" {printf("METH\n"); return METH;}
+">>" {printf("INP\n"); return INP;}
+"<<" {printf("OUT\n"); return OUT;}
+"EOF" {printf("EOF\n"); return EOF;}
 
-{ID} {printf("ID detected %s\n", yytext);}
+{ID} {printf("ID detected %s\n", yytext); yylval.str = strdup(yytext);/*symbol table*/ return ID;}
 
 %%
-
-int main( int argc, char **argv ) {
-    yylex();
+int iconvert(){
+if (yyleng >= 3) {
+        if (yytext[1] == 'H') { //hexadecimal case
+        	return strtol(yytext+2, NULL, 16);
+	}
+        else if (yytext[1] == 'B') { //binary case
+        	return strtol(yytext+2, NULL, 2);
+	}
+        else {
+            return atoi(yytext);
+         }
+    }
+    else {
+        return atoi(yytext);
+    }
+}
+float fconvert(){
+if (yyleng >= 3) {
+        if (yytext[1] == 'H') { //hexadecimal case
+        	return strtol(yytext+2, NULL, 16);
+        }
+        else if (yytext[1] == 'B') { //binary case
+        	return strtol(yytext+2, NULL, 2);
+        }
+        else {
+            return atof(yytext);
+         }
+    }
+    else {
+        return atof(yytext);
+    }
 }

@@ -1,19 +1,30 @@
 %{
 #include <stdio.h>
+#include "dkk.tab.h"
+int yylex(void);
+void yyerror(const char *s);
 %}
 %token TYPEDEF CHAR INT FLOAT CONST UNION CLASS PRIVATE PROTECTED PUBLIC
 STATIC VOID LIST CONTINUE BREAK THIS IF ELSE WHILE FOR RETURN LENGTH
 NEW CIN COUT MAIN ID ICONST FCONST CCONST OROP ANDOP EQUOP RELOP ADDOP MULOP NOTOP INCDEC
 SIZEOP LISTFUNC STRING LPAREN RPAREN SEMI DOT COMMA ASSIGN COLON LBRACK RBRACK REFER
-LBRACE RBRACE METH INP OUT EOF
+LBRACE RBRACE METH INP OUT
 %nonassoc EQUOP RELOP
-%nonassoc THEN
+%nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE
 %left COMMA
 %left OROP ANDOP NOTOP
 %left ADDOP
 %left MULOP
 %left SIZEOP
+
+%union{
+	int ival;
+	float fval;
+	char cval;
+	short int oper;
+	char *str;
+}
 %%
 program: global_declarations main_function;
 global_declarations: global_declarations global_declaration | ;
@@ -129,7 +140,7 @@ statement : expression_statement
 	| BREAK SEMI
 	| SEMI;
 expression_statement : general_expression SEMI;
-if_statement : IF LPAREN general_expression RPAREN THEN statement | IF LPAREN general_expression RPAREN statement ELSE statement;
+if_statement : IF LPAREN general_expression RPAREN statement %prec LOWER_THAN_ELSE | IF LPAREN general_expression RPAREN statement ELSE statement;
 while_statement : WHILE LPAREN general_expression RPAREN statement;
 for_statement : FOR LPAREN optexpr SEMI optexpr SEMI optexpr RPAREN statement;
 optexpr : general_expression | ;
@@ -143,6 +154,9 @@ comp_statement: LBRACE decl_statements RBRACE;
 main_function: main_header LBRACE decl_statements RBRACE;
 main_header: INT MAIN LPAREN RPAREN;
 %%
+void yyerror (char const *s) {
+	printf("error: %s\n", s);
+}
 int main(){
 	return yyparse();
 }
