@@ -1,6 +1,7 @@
 %{
 #include <stdio.h>
 #include "dkk.tab.h"
+#include "defines.h"
 int yylex(void);
 void yyerror(const char *s);
 %}
@@ -9,6 +10,7 @@ STATIC VOID LIST CONTINUE BREAK THIS IF ELSE WHILE FOR RETURN LENGTH
 NEW CIN COUT MAIN ID ICONST FCONST CCONST OROP ANDOP EQUOP RELOP ADDOP MULOP NOTOP INCDEC
 SIZEOP LISTFUNC STRING LPAREN RPAREN SEMI DOT COMMA ASSIGN COLON LBRACK RBRACK REFER
 LBRACE RBRACE METH INP OUT
+
 %nonassoc EQUOP RELOP
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE
@@ -24,7 +26,12 @@ LBRACE RBRACE METH INP OUT
 	char cval;
 	short int oper;
 	char *str;
+	expr_t myexpr;
+	
+	
 }
+
+%type <myexpr> expression
 %%
 program: global_declarations main_function;
 global_declarations: global_declarations global_declaration | ;
@@ -46,14 +53,43 @@ constdef : ID dims ASSIGN init_value;
 init_value : expression
 	| LBRACE init_values RBRACE
 	| STRING;
-expression : expression OROP expression
-	| expression ANDOP expression
+expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == T_INT)) {
+   					  	printf("correct type\n");
+   					  	$$.type = $1.type;
+					  }
+					  else {
+					  	printf("semantics error\n");
+					  }
+					}
+	| expression ANDOP expression { if (($1.type == T_INT) && ($3.type == T_INT)) {
+   					  	printf("correct type\n");
+   					  	$$.type = $1.type;
+					  }
+					  else {
+					  	printf("semantics error\n");
+					  }
+				      }
 	| expression EQUOP expression
 	| expression RELOP expression
 	| expression ADDOP expression
 	| expression MULOP expression
-	| NOTOP expression
-	| ADDOP expression
+	| NOTOP expression { if ($2.type != T_INT) { 
+	                     	printf("not correct type. semantics error\n");
+	                     }
+	                     else {
+	                   	$$.type = $2.type;
+	                   	printf("correct type\n");
+	                     }
+	                   }
+				
+	| ADDOP expression { if (($2.type != T_INT) || ($2.type != T_FLOAT)) {
+		             	printf("semantic error\n");
+			     }
+			     else {
+			     	$$.type = $2.type;
+	                   	printf("correct type\n");
+			     }
+			   }
 	| SIZEOP expression
 	| INCDEC variable
 	| variable INCDEC
