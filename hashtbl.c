@@ -14,6 +14,7 @@ Retrieved from: http://en.literateprograms.org/Hash_table_(C)?oldid=19638
 */
 
 #include"hashtbl.h"
+#include "defines.h"
 
 #include<string.h>
 #include<stdio.h>
@@ -58,11 +59,16 @@ void hashtbl_destroy(HASHTBL *hashtbl)
 {
 	hash_size n;
 	struct hashnode_s *node, *oldnode;
+	array_t *prt;
 	
 	for(n=0; n<hashtbl->size; ++n) {
 		node=hashtbl->nodes[n];
 		while(node) {
 			free(node->key);
+			free(node->data);
+			prt = node->arr;
+			if(prt != NULL)
+				free(prt);
 			oldnode=node;
 			node=node->next;
 			free(oldnode);
@@ -72,7 +78,7 @@ void hashtbl_destroy(HASHTBL *hashtbl)
 	free(hashtbl);
 }
 
-int hashtbl_insert(HASHTBL *hashtbl, const char *key, char* data ,int scope)
+int hashtbl_insert(HASHTBL *hashtbl, const char *key, char* data ,int scope, array_t *arr)
 {
 	struct hashnode_s *node;
 	hash_size hash=hashtbl->hashfunc(key)%hashtbl->size;
@@ -89,11 +95,24 @@ int hashtbl_insert(HASHTBL *hashtbl, const char *key, char* data ,int scope)
 	}
 
 	if(!(node=malloc(sizeof(struct hashnode_s)))) return -1;
+
 	if(!(node->key=mystrdup(key))) {
 		free(node);
 		return -1;
 	}
-	node->data=mystrdup(data);
+
+	if(!(node->data=mystrdup(data))) {
+		free(node);
+		return -1;
+	}
+
+	if (arr != NULL){
+		node->arr = malloc(sizeof(array_t));
+		memcpy(node->arr, arr, sizeof(array_t));
+	} else {
+		node->arr = NULL;
+	}
+
 	node->scope = scope;
 	node->next=hashtbl->nodes[hash];
 	hashtbl->nodes[hash]=node;
@@ -101,7 +120,7 @@ int hashtbl_insert(HASHTBL *hashtbl, const char *key, char* data ,int scope)
 	return 0;
 }
 
-int hashtbl_remove(HASHTBL *hashtbl, const char *key,int scope)
+int hashtbl_remove(HASHTBL *hashtbl, const char *key,int scope, array_t *arr)
 {
 	struct hashnode_s *node, *prevnode=NULL;
 	hash_size hash=hashtbl->hashfunc(key)%hashtbl->size;
@@ -110,6 +129,9 @@ int hashtbl_remove(HASHTBL *hashtbl, const char *key,int scope)
 	while(node) {
 		if((!strcmp(node->key, key)) && (node->scope == scope)) {
 			free(node->key);
+			free(node->data);
+			if (node->arr != NULL)
+				free(node->arr);
 			if(prevnode) prevnode->next=node->next;
 			else hashtbl->nodes[hash]=node->next;
 			free(node);
@@ -135,7 +157,7 @@ void *hashtbl_get(HASHTBL *hashtbl, int scope)
 				printf("\t\t\t\t\tHASHTBL_GET():\tSCOPE = %d, KEY = %s,  \tDATA = %s\n", node->scope, node->key, (char*)node->data);
 				oldnode = node;
 				node=node->next;
-				rem = hashtbl_remove(hashtbl, oldnode->key, scope);
+				rem = hashtbl_remove(hashtbl, oldnode->key, scope, oldnode->arr);
 			}else
 				node=node->next;
 		}
@@ -146,6 +168,7 @@ void *hashtbl_get(HASHTBL *hashtbl, int scope)
 	
 	return NULL;
 }
+
 int hashtbl_lookup(HASHTBL *hashtbl, int scope, const char* key){
 	struct hashnode_s *node;
 	hash_size hash=hashtbl->hashfunc(key)%hashtbl->size;
