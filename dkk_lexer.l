@@ -1,12 +1,11 @@
-
 %{
-    #include <stdio.h>
-    #include <stdlib.h>
-    #include <string.h>
-    #include "dkk.tab.h"
-    #define T_EOF 0
-    #define MAX_STRING_SIZE 509
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "defines.h"
+#include "dkk.tab.h"
+#define T_EOF 0
+#define MAX_STRING_SIZE 509
 //    YYSTYPE yylval;
     int iconvert();
     float fconvert();

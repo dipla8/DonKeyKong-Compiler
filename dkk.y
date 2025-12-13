@@ -31,13 +31,15 @@ LBRACE RBRACE METH INP OUT ID
 	char cval;
 	short int oper;
 	char *str;
-	expr_t myexpr;	
+	expr_t myexpr;
+	type_t type;
 	id_list_t *idlist;
 }
 
 %type <myexpr> expression
-%type <ival> standard_type typename 
+%type <ival> standard_type typename variable
 %type <str> variabledef init_variabledef
+%type <type> constant
 %type <idlist> variabledefs init_variabledefs
 %%
 program: global_declarations main_function {exit(0);};
@@ -125,29 +127,44 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 	                   	printf("correct type\n");
 			     }
 			   }
-	| SIZEOP expression
+	| SIZEOP expression {$$.type = T_INT;}
 	| INCDEC variable
 	| variable INCDEC
-	| variable
+	| variable { switch($1){
+			case 0:{ $$.type = T_CHAR; break;}
+			case 1:{ $$.type = T_INT; break;}
+			case 2:{ $$.type = T_FLOAT; break;}
+			case 3:{ $$.type = T_VOID; break;}
+			case 4:{ $$.type = T_ID; break;}
+			default: {printf("semantic error");}
+			}
+			}
 	| variable LPAREN expression_list RPAREN
 	| LENGTH LPAREN general_expression RPAREN
 	| NEW LPAREN general_expression RPAREN
-	| constant
+	| constant {$$.type = $1;}
 	| LPAREN general_expression RPAREN
 	| LPAREN standard_type RPAREN
 	| listexpression;
-variable : variable LBRACK general_expression RBRACK
-	| variable DOT ID
-	| LISTFUNC LPAREN general_expression RPAREN
-	| decltype ID
-	| THIS;
+variable : variable LBRACK general_expression RBRACK // matrix
+	| variable DOT ID // class
+	| LISTFUNC LPAREN general_expression RPAREN // list
+	| decltype ID { int p;
+			p = hashtbl_lookup(symtb, scope, yylval.str);
+			if(p == -1)
+				printf("semantics error\n");
+			else
+				$$ = p;}
+	| THIS; // class
 general_expression : general_expression COMMA general_expression
 	| assignment;
 assignment : variable ASSIGN assignment
 	| variable ASSIGN STRING
 	| expression;
 expression_list : general_expression | ;
-constant : CCONST | ICONST | FCONST;
+constant : CCONST {$$ = T_CHAR;}
+	| ICONST {$$ = T_INT;}
+	| FCONST {$$ = T_FLOAT;};
 listexpression : LBRACK expression_list RBRACK;
 init_values : init_values COMMA init_value | init_value;
 class_declaration : CLASS ID class_body SEMI;
