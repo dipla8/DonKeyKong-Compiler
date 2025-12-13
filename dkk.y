@@ -8,6 +8,7 @@
 int yylex(void);
 void yyerror(const char *s);
 int scope = 0;
+int dim_count = 0;
 HASHTBL *symtb;
 %}
 %token TYPEDEF CHAR INT FLOAT CONST UNION CLASS PRIVATE PROTECTED PUBLIC
@@ -30,17 +31,20 @@ LBRACE RBRACE METH INP OUT ID
 	float fval;
 	char cval;
 	short int oper;
-	char *str;
+	id_t id;
 	expr_t myexpr;
 	type_t type;
 	id_list_t *idlist;
+	array_t *arr;
 }
 
 %type <myexpr> expression
 %type <ival> standard_type typename variable
-%type <str> variabledef init_variabledef
+%type <id> variabledef init_variabledef
 %type <type> constant
 %type <idlist> variabledefs init_variabledefs
+%type <arr> dims
+
 %%
 program: global_declarations main_function {exit(0);};
 global_declarations: global_declarations global_declaration | ;
@@ -50,16 +54,56 @@ global_declaration : typedef_declaration
 	| union_declaration
 	| global_var_declaration
 	| func_declaration {printf("global");};
-typedef_declaration : TYPEDEF typename listspec ID dims SEMI;
+typedef_declaration : TYPEDEF typename listspec ID {
+	dim_count = 0;
+} dims SEMI {/*must add routine*/}
 typename : standard_type {$$ = $1;} 
-		| ID {$$ = 4;};
-standard_type : CHAR {printf("got char\n"); $$ = 0;}
-		| INT {printf("got int\n"); $$ = 1;}
-		| FLOAT {printf("got float\n"); $$ = 2;}
-		| VOID {printf("got void\n"); $$ = 3;};
+		| ID {$$ = T_ID;};
+standard_type : CHAR {printf("got char\n"); $$ = T_CHAR;}
+		| INT {printf("got int\n"); $$ = T_INT;}
+		| FLOAT {printf("got float\n"); $$ = T_FLOAT;}
+		| VOID {printf("got void\n"); $$ = T_VOID;};
 listspec : LIST | ;
-dims : dims dim | ;
-dim : LBRACK ICONST RBRACK | LBRACK RBRACK;
+dims : dims LBRACK ICONST RBRACK {
+		if (dim_count == MAX_DIMENSIONS) {
+			//ERROR
+			printf("Error: Exceeded maximum number of dimensions (%d)\n", MAX_DIMENSIONS);
+			if ($1) free($1);
+		}
+		else if (dim_count == 0) {
+			$$ = malloc(sizeof(array_t));
+			$$->size[MAX_DIMENSIONS - dim] = $3;
+			$$->dims = 1;
+			dim_count++;
+		}
+		else {
+			$1->size[dim_count] = $3;
+			$1->dims++;
+			$$ = $1;
+			dim_count++;
+		}
+	}
+	| LBRACK RBRACK {
+		if (dim_count == MAX_DIMENSIONS) {
+			//ERROR
+			printf("Error: Exceeded maximum number of dimensions (%d)\n", MAX_DIMENSIONS);
+			if ($1) free($1);
+		}
+		else if (dim_count == 0) {
+			$$ = malloc(sizeof(array_t));
+			$$->size[0] = 0;
+			$$->dims++;
+			dim_count++;
+		}
+		else {
+			$1->size[dim_count] = 0;
+			$1->dims++;
+			$$ = $1;
+			dim_count++;
+		}
+	}
+    | {$$ = NULL;}
+	;
 const_declaration : CONST typename constdefs SEMI;
 constdefs : constdefs COMMA constdef | constdef;
 constdef : ID dims ASSIGN init_value;
@@ -130,15 +174,16 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 	| SIZEOP expression {$$.type = T_INT;}
 	| INCDEC variable
 	| variable INCDEC
-	| variable { switch($1){
-			case 0:{ $$.type = T_CHAR; break;}
-			case 1:{ $$.type = T_INT; break;}
-			case 2:{ $$.type = T_FLOAT; break;}
-			case 3:{ $$.type = T_VOID; break;}
-			case 4:{ $$.type = T_ID; break;}
-			default: {printf("semantic error");}
+	| variable { 
+			switch($1){
+				case 0:{ $$.type = T_CHAR; break;}
+				case 1:{ $$.type = T_INT; break;}
+				case 2:{ $$.type = T_FLOAT; break;}
+				case 3:{ $$.type = T_VOID; break;}
+				case 4:{ $$.type = T_TYPEDEF; break;}
+				default: {printf("semantic error");}
 			}
-			}
+		}
 	| variable LPAREN expression_list RPAREN
 	| LENGTH LPAREN general_expression RPAREN
 	| NEW LPAREN general_expression RPAREN
@@ -149,12 +194,14 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 variable : variable LBRACK general_expression RBRACK // matrix
 	| variable DOT ID // class
 	| LISTFUNC LPAREN general_expression RPAREN // list
-	| decltype ID { int p;
-			p = hashtbl_lookup(symtb, scope, yylval.str);
-			if(p == -1)
+	| decltype ID { 
+			int p;
+
+			if((p = hashtbl_lookup(symtb, scope, yylval.str)) == -1)
 				printf("semantics error\n");
 			else
-				$$ = p;}
+				$$ = p;
+		}
 	| THIS; // class
 general_expression : general_expression COMMA general_expression
 	| assignment;
@@ -195,7 +242,7 @@ var_declaration : typename variabledefs SEMI {
 		  }
           while (curr) {
               printf("str = %s\n", curr->id);
-              hashtbl_insert(symtb, curr->id, t, scope);
+              hashtbl_insert(symtb, curr->id->id, t, scope, curr->id->arr);
               curr = curr->next;
 			  free(prv);
 			  prv = curr;
@@ -213,8 +260,12 @@ variabledefs : variabledefs COMMA variabledef {
           n->next = NULL;
           $$ = n;
       };
-variabledef : LIST ID dims
-	| ID dims {$$ = yylval.str; printf("variabledef\n");};
+variabledef : LIST ID {dim_count = 0;} dims
+	| ID {dim_count = 0;} dims {
+		$$ = malloc(sizeof(id_t));
+		$$->id = $1;
+		$$->arr = $3;
+	};
 anonymous_union : UNION union_body SEMI;
 union_body : LBRACE fields RBRACE;
 fields : fields field | field;
@@ -258,12 +309,12 @@ init_variabledefs : init_variabledefs COMMA init_variabledef  {
          		 n->next = $1;
          		 $$ = n;
       			}
-		| init_variabledef{
-        		  id_list_t* n = malloc(sizeof(id_list_t));
-        		  n->id = $1;
-        		  n->next = NULL;
-        		  $$ = n;
-      			};
+				| init_variabledef{
+					id_list_t* n = malloc(sizeof(id_list_t));
+					n->id = $1;
+					n->next = NULL;
+					$$ = n;
+				};
 
 init_variabledef : variabledef initializer {$$ = $1; printf("init_variabledef\n");};
 initializer : ASSIGN init_value | ;
