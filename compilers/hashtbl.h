@@ -39,5 +39,5 @@ void hashtbl_destroy(HASHTBL *hashtbl);
 int hashtbl_insert(HASHTBL *hashtbl, const char *key, char *data, int scope);
 int hashtbl_remove(HASHTBL *hashtbl, const char *key,int scope);
 void *hashtbl_get(HASHTBL *hashtbl, int scope);
-
+int hashtbl_lookup(HASHTBL *hashtbl, int scope, const char* key);
 #endif

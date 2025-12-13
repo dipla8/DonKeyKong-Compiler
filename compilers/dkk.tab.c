@@ -634,23 +634,23 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,    43,    43,    44,    44,    45,    46,    47,    48,    49,
-      50,    51,    52,    53,    54,    55,    56,    57,    58,    58,
-      59,    59,    60,    60,    61,    62,    62,    63,    64,    65,
-      66,    67,    75,    83,    89,    95,   103,   111,   120,   128,
-     129,   130,   131,   132,   133,   134,   135,   136,   137,   138,
-     139,   140,   141,   142,   143,   144,   145,   146,   147,   148,
-     149,   149,   150,   150,   150,   151,   152,   152,   153,   154,
-     155,   155,   156,   156,   157,   157,   157,   157,   158,   159,
-     160,   161,   162,   187,   193,   199,   200,   201,   202,   203,
-     203,   204,   205,   206,   206,   207,   208,   208,   209,   209,
-     210,   210,   211,   212,   213,   238,   244,   251,   252,   252,
-     253,   253,   254,   255,   256,   257,   258,   259,   260,   261,
-     262,   263,   264,   264,   265,   266,   267,   268,   268,   269,
-     294,   319,   319,   320,   320,   321,   322,   323,   324,   325,
-     326,   327,   328,   329,   330,   331,   332,   332,   333,   334,
-     335,   335,   336,   337,   337,   338,   338,   339,   340,   340,
-     341,   341,   342,   343,   344
+       0,    45,    45,    46,    46,    47,    48,    49,    50,    51,
+      52,    53,    54,    55,    56,    57,    58,    59,    60,    60,
+      61,    61,    62,    62,    63,    64,    64,    65,    66,    67,
+      68,    69,    77,    85,    91,    97,   105,   113,   122,   130,
+     131,   132,   133,   142,   143,   144,   145,   146,   147,   148,
+     149,   150,   151,   152,   158,   159,   160,   161,   162,   163,
+     164,   164,   165,   166,   167,   168,   169,   169,   170,   171,
+     172,   172,   173,   173,   174,   174,   174,   174,   175,   176,
+     177,   178,   179,   204,   210,   216,   217,   218,   219,   220,
+     220,   221,   222,   223,   223,   224,   225,   225,   226,   226,
+     227,   227,   228,   229,   230,   255,   261,   268,   269,   269,
+     270,   270,   271,   272,   273,   274,   275,   276,   277,   278,
+     279,   280,   281,   281,   282,   283,   284,   285,   285,   286,
+     311,   336,   336,   337,   337,   338,   339,   340,   341,   342,
+     343,   344,   345,   346,   347,   348,   349,   349,   350,   351,
+     352,   352,   353,   354,   354,   355,   355,   356,   357,   357,
+     358,   358,   359,   360,   361
 };
 #endif
 
@@ -1498,55 +1498,55 @@ yyreduce:
   switch (yyn)
     {
   case 2: /* program: global_declarations main_function  */
-#line 43 "dkk.y"
+#line 45 "dkk.y"
                                            {exit(0);}
 #line 1504 "dkk.tab.c"
     break;
 
   case 10: /* global_declaration: func_declaration  */
-#line 50 "dkk.y"
+#line 52 "dkk.y"
                            {printf("global");}
 #line 1510 "dkk.tab.c"
     break;
 
   case 12: /* typename: standard_type  */
-#line 52 "dkk.y"
+#line 54 "dkk.y"
                          {(yyval.ival) = (yyvsp[0].ival);}
 #line 1516 "dkk.tab.c"
     break;
 
   case 13: /* typename: ID  */
-#line 53 "dkk.y"
+#line 55 "dkk.y"
                      {(yyval.ival) = 4;}
 #line 1522 "dkk.tab.c"
     break;
 
   case 14: /* standard_type: CHAR  */
-#line 54 "dkk.y"
+#line 56 "dkk.y"
                      {printf("got char\n"); (yyval.ival) = 0;}
 #line 1528 "dkk.tab.c"
     break;
 
   case 15: /* standard_type: INT  */
-#line 55 "dkk.y"
+#line 57 "dkk.y"
                       {printf("got int\n"); (yyval.ival) = 1;}
 #line 1534 "dkk.tab.c"
     break;
 
   case 16: /* standard_type: FLOAT  */
-#line 56 "dkk.y"
+#line 58 "dkk.y"
                         {printf("got float\n"); (yyval.ival) = 2;}
 #line 1540 "dkk.tab.c"
     break;
 
   case 17: /* standard_type: VOID  */
-#line 57 "dkk.y"
+#line 59 "dkk.y"
                        {printf("got void\n"); (yyval.ival) = 3;}
 #line 1546 "dkk.tab.c"
     break;
 
   case 31: /* expression: expression OROP expression  */
-#line 67 "dkk.y"
+#line 69 "dkk.y"
                                         { if (((yyvsp[-2].myexpr).type == T_INT) && ((yyvsp[0].myexpr).type == T_INT)) {
    					  	printf("correct type\n");
    					  	(yyval.myexpr).type = (yyvsp[-2].myexpr).type;
@@ -1559,7 +1559,7 @@ yyreduce:
     break;
 
   case 32: /* expression: expression ANDOP expression  */
-#line 75 "dkk.y"
+#line 77 "dkk.y"
                                       { if (((yyvsp[-2].myexpr).type == T_INT) && ((yyvsp[0].myexpr).type == T_INT)) {
    					  	printf("correct type\n");
    					  	(yyval.myexpr).type = (yyvsp[-2].myexpr).type;
@@ -1572,7 +1572,7 @@ yyreduce:
     break;
 
   case 33: /* expression: expression EQUOP expression  */
-#line 83 "dkk.y"
+#line 85 "dkk.y"
                                       {if((((yyvsp[-2].myexpr).type == T_INT || (yyvsp[-2].myexpr).type == T_FLOAT) && (((yyvsp[0].myexpr).type == T_INT) ||((yyvsp[0].myexpr).type == T_FLOAT))) || ((yyvsp[-2].myexpr).type == T_CHAR && (yyvsp[0].myexpr).type == T_CHAR)){
 						printf("correct type equop\n");
 						(yyval.myexpr).type = T_INT;
@@ -1583,7 +1583,7 @@ yyreduce:
     break;
 
   case 34: /* expression: expression RELOP expression  */
-#line 89 "dkk.y"
+#line 91 "dkk.y"
                                       {if((((yyvsp[-2].myexpr).type == T_INT || (yyvsp[-2].myexpr).type == T_FLOAT) && (((yyvsp[0].myexpr).type == T_INT) ||((yyvsp[0].myexpr).type == T_FLOAT))) || ((yyvsp[-2].myexpr).type == T_CHAR && (yyvsp[0].myexpr).type == T_CHAR)){
 						printf("correct type relop\n");
 						(yyval.myexpr).type = T_INT;
@@ -1594,7 +1594,7 @@ yyreduce:
     break;
 
   case 35: /* expression: expression ADDOP expression  */
-#line 95 "dkk.y"
+#line 97 "dkk.y"
                                       {if((yyvsp[-2].myexpr).type == T_INT && (yyvsp[0].myexpr).type == T_INT)
 						(yyval.myexpr).type = T_INT;
 					else if (((yyvsp[-2].myexpr).type == T_INT && (yyvsp[0].myexpr).type == T_FLOAT) || ((yyvsp[-2].myexpr).type == T_FLOAT && (yyvsp[0].myexpr).type == T_INT) || ((yyvsp[-2].myexpr).type == T_FLOAT && (yyvsp[0].myexpr).type == T_FLOAT)) {
@@ -1607,7 +1607,7 @@ yyreduce:
     break;
 
   case 36: /* expression: expression MULOP expression  */
-#line 103 "dkk.y"
+#line 105 "dkk.y"
                                       {if((yyvsp[-2].myexpr).type == T_INT && (yyvsp[0].myexpr).type == T_INT)
 						(yyval.myexpr).type = T_INT;
 					else if ((((yyvsp[-2].myexpr).type == T_INT && (yyvsp[0].myexpr).type == T_FLOAT) || ((yyvsp[-2].myexpr).type == T_FLOAT && (yyvsp[0].myexpr).type == T_INT) || ((yyvsp[-2].myexpr).type == T_FLOAT && (yyvsp[0].myexpr).type == T_FLOAT))/* && ($2.type != T_MULOP_MOD)*/) {
@@ -1620,7 +1620,7 @@ yyreduce:
     break;
 
   case 37: /* expression: NOTOP expression  */
-#line 111 "dkk.y"
+#line 113 "dkk.y"
                            { if ((yyvsp[0].myexpr).type != T_INT) { 
 	                     	printf("not correct type. semantics error\n");
 	                     }
@@ -1633,7 +1633,7 @@ yyreduce:
     break;
 
   case 38: /* expression: ADDOP expression  */
-#line 120 "dkk.y"
+#line 122 "dkk.y"
                            { if (((yyvsp[0].myexpr).type != T_INT) || ((yyvsp[0].myexpr).type != T_FLOAT)) {
 		             	printf("semantic error\n");
 			     }
@@ -1645,8 +1645,63 @@ yyreduce:
 #line 1646 "dkk.tab.c"
     break;
 
+  case 39: /* expression: SIZEOP expression  */
+#line 130 "dkk.y"
+                            {(yyval.myexpr).type = T_INT;}
+#line 1652 "dkk.tab.c"
+    break;
+
+  case 42: /* expression: variable  */
+#line 133 "dkk.y"
+                   { switch((yyvsp[0].ival)){
+			case 0:{ (yyval.myexpr).type = T_CHAR; break;}
+			case 1:{ (yyval.myexpr).type = T_INT; break;}
+			case 2:{ (yyval.myexpr).type = T_FLOAT; break;}
+			case 3:{ (yyval.myexpr).type = T_VOID; break;}
+			case 4:{ (yyval.myexpr).type = T_ID; break;}
+			default: {printf("semantic error");}
+			}
+			}
+#line 1666 "dkk.tab.c"
+    break;
+
+  case 46: /* expression: constant  */
+#line 145 "dkk.y"
+                   {(yyval.myexpr).type = (yyvsp[0].type);}
+#line 1672 "dkk.tab.c"
+    break;
+
+  case 53: /* variable: decltype ID  */
+#line 152 "dkk.y"
+                      { int p;
+			p = hashtbl_lookup(symtb, scope, yylval.str);
+			if(p == -1)
+				printf("semantics error\n");
+			else
+				(yyval.ival) = p;}
+#line 1683 "dkk.tab.c"
+    break;
+
+  case 62: /* constant: CCONST  */
+#line 165 "dkk.y"
+                  {(yyval.type) = T_CHAR;}
+#line 1689 "dkk.tab.c"
+    break;
+
+  case 63: /* constant: ICONST  */
+#line 166 "dkk.y"
+                 {(yyval.type) = T_INT;}
+#line 1695 "dkk.tab.c"
+    break;
+
+  case 64: /* constant: FCONST  */
+#line 167 "dkk.y"
+                 {(yyval.type) = T_FLOAT;}
+#line 1701 "dkk.tab.c"
+    break;
+
   case 82: /* var_declaration: typename variabledefs SEMI  */
-#line 162 "dkk.y"
+#line 179 "dkk.y"
                                              {
 	  id_list_t *curr = (yyvsp[-1].idlist), *prv = (yyvsp[-1].idlist);
           char t[8];
@@ -1672,39 +1727,39 @@ yyreduce:
 			  prv = curr;
           }
       }
-#line 1676 "dkk.tab.c"
+#line 1731 "dkk.tab.c"
     break;
 
   case 83: /* variabledefs: variabledefs COMMA variabledef  */
-#line 187 "dkk.y"
+#line 204 "dkk.y"
                                               {
           id_list_t* n = malloc(sizeof(id_list_t));
           n->id = (yyvsp[0].str);
           n->next = (yyvsp[-2].idlist);
           (yyval.idlist) = n;
       }
-#line 1687 "dkk.tab.c"
+#line 1742 "dkk.tab.c"
     break;
 
   case 84: /* variabledefs: variabledef  */
-#line 193 "dkk.y"
+#line 210 "dkk.y"
                       {
           id_list_t* n = malloc(sizeof(id_list_t));
           n->id = (yyvsp[0].str);
           n->next = NULL;
           (yyval.idlist) = n;
       }
-#line 1698 "dkk.tab.c"
+#line 1753 "dkk.tab.c"
     break;
 
   case 86: /* variabledef: ID dims  */
-#line 200 "dkk.y"
+#line 217 "dkk.y"
                   {(yyval.str) = yylval.str; printf("variabledef\n");}
-#line 1704 "dkk.tab.c"
+#line 1759 "dkk.tab.c"
     break;
 
   case 104: /* global_var_declaration: typename init_variabledefs SEMI  */
-#line 213 "dkk.y"
+#line 230 "dkk.y"
                                                          {
 	  id_list_t *curr = (yyvsp[-1].idlist), *prv = (yyvsp[-1].idlist);
           char t[8];
@@ -1730,45 +1785,45 @@ yyreduce:
 			  prv = curr;
           }
       }
-#line 1734 "dkk.tab.c"
+#line 1789 "dkk.tab.c"
     break;
 
   case 105: /* init_variabledefs: init_variabledefs COMMA init_variabledef  */
-#line 238 "dkk.y"
+#line 255 "dkk.y"
                                                               {
          		 id_list_t* n = malloc(sizeof(id_list_t));
          		 n->id = (yyvsp[0].str);
          		 n->next = (yyvsp[-2].idlist);
          		 (yyval.idlist) = n;
       			}
-#line 1745 "dkk.tab.c"
+#line 1800 "dkk.tab.c"
     break;
 
   case 106: /* init_variabledefs: init_variabledef  */
-#line 244 "dkk.y"
+#line 261 "dkk.y"
                                   {
         		  id_list_t* n = malloc(sizeof(id_list_t));
         		  n->id = (yyvsp[0].str);
         		  n->next = NULL;
         		  (yyval.idlist) = n;
       			}
-#line 1756 "dkk.tab.c"
+#line 1811 "dkk.tab.c"
     break;
 
   case 107: /* init_variabledef: variabledef initializer  */
-#line 251 "dkk.y"
+#line 268 "dkk.y"
                                            {(yyval.str) = (yyvsp[-1].str); printf("init_variabledef\n");}
-#line 1762 "dkk.tab.c"
+#line 1817 "dkk.tab.c"
     break;
 
   case 111: /* func_declaration: full_func_declaration  */
-#line 253 "dkk.y"
+#line 270 "dkk.y"
                                                                   {printf("sevo");}
-#line 1768 "dkk.tab.c"
+#line 1823 "dkk.tab.c"
     break;
 
   case 129: /* declarations: declarations decltype typename variabledefs SEMI  */
-#line 269 "dkk.y"
+#line 286 "dkk.y"
                                                                 {
 	  id_list_t *curr = (yyvsp[-1].idlist), *prv = (yyvsp[-1].idlist);
           char t[8];
@@ -1794,11 +1849,11 @@ yyreduce:
 			  prv = curr;
           }
       }
-#line 1798 "dkk.tab.c"
+#line 1853 "dkk.tab.c"
     break;
 
   case 130: /* declarations: decltype typename variabledefs SEMI  */
-#line 294 "dkk.y"
+#line 311 "dkk.y"
                                                      {
 	  id_list_t *curr = (yyvsp[-1].idlist), *prv = (yyvsp[-1].idlist);
           char t[8];
@@ -1824,11 +1879,11 @@ yyreduce:
 			  prv = curr;
           }
       }
-#line 1828 "dkk.tab.c"
+#line 1883 "dkk.tab.c"
     break;
 
 
-#line 1832 "dkk.tab.c"
+#line 1887 "dkk.tab.c"
 
       default: break;
     }
@@ -2021,7 +2076,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 345 "dkk.y"
+#line 362 "dkk.y"
 
 #include "hashtbl.h"
 void yyerror (char const *s) {

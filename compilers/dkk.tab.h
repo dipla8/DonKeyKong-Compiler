@@ -126,10 +126,11 @@ union YYSTYPE
 	char cval;
 	short int oper;
 	char *str;
-	expr_t myexpr;	
+	expr_t myexpr;
+	type_t type;
 	id_list_t *idlist;
 
-#line 133 "dkk.tab.h"
+#line 134 "dkk.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

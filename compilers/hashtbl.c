@@ -146,3 +146,23 @@ void *hashtbl_get(HASHTBL *hashtbl, int scope)
 	
 	return NULL;
 }
+int hashtbl_lookup(HASHTBL *hashtbl, int scope, const char* key){
+	struct hashnode_s *node;
+	hash_size hash=hashtbl->hashfunc(key)%hashtbl->size;
+	node=hashtbl->nodes[hash];
+	while(node) {
+		if(!strcmp(node->key, key) && (node->scope == scope)) {
+			if(!strcmp(node->data, "char"))
+				return 0;
+			else if(!strcmp(node->data, "int"))
+				return 1;
+			else if(!strcmp(node->data, "float"))
+				return 2;
+			else if(!strcmp(node->data, "void"))
+				return 3;
+			else return 4;
+		}
+		node=node->next;
+	}
+	return -1;
+}

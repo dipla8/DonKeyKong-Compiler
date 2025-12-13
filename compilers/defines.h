@@ -1,7 +1,9 @@
 typedef enum {
+	T_CHAR,
 	T_INT,
 	T_FLOAT,
-	T_CHAR
+	T_VOID,
+	T_ID
 } type_t;
 
 

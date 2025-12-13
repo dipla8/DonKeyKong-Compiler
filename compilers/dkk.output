@@ -349,7 +349,7 @@ Nonterminals, with rules where they appear
     expression <myexpr> (74)
         on left: 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48
         on right: 27 30 31 32 33 34 35 36 37 38 58
-    variable (75)
+    variable <ival> (75)
         on left: 49 50 51 52 53
         on right: 39 40 41 42 49 50 56 57 156
     general_expression (76)
@@ -361,7 +361,7 @@ Nonterminals, with rules where they appear
     expression_list (78)
         on left: 59 60
         on right: 42 64
-    constant (79)
+    constant <type> (79)
         on left: 61 62 63
         on right: 45
     listexpression (80)
