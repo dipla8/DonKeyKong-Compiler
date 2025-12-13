@@ -17,6 +17,7 @@ Retrieved from: http://en.literateprograms.org/Hash_table_(C)?oldid=19638
 #define HASHTBL_H_INCLUDE_GUARD
 
 #include<stdlib.h>
+#include "defines.h"
 
 typedef size_t hash_size;
 
@@ -24,6 +25,7 @@ struct hashnode_s {
 	char *key;
 	char *data;
 	int scope;
+	array_t *arr;
 	struct hashnode_s *next;
 };
 
@@ -36,8 +38,8 @@ typedef struct hashtbl {
 
 HASHTBL *hashtbl_create(hash_size size, hash_size (*hashfunc)(const char *));
 void hashtbl_destroy(HASHTBL *hashtbl);
-int hashtbl_insert(HASHTBL *hashtbl, const char *key, char *data, int scope);
-int hashtbl_remove(HASHTBL *hashtbl, const char *key,int scope);
+int hashtbl_insert(HASHTBL *hashtbl, const char *key, char *data, int scope, array_t *arr);
+int hashtbl_remove(HASHTBL *hashtbl, const char *key,int scope, array_t *arr);
 void *hashtbl_get(HASHTBL *hashtbl, int scope);
-int hashtbl_lookup(HASHTBL *hashtbl, int scope, const char* key);
+int hashtbl_lookup(HASHTBL *hashtbl, int scope, const char *key);
 #endif
