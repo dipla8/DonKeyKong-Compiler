@@ -13,9 +13,11 @@ HASHTBL *symtb;
 %}
 %token TYPEDEF CHAR INT FLOAT CONST UNION CLASS PRIVATE PROTECTED PUBLIC
 STATIC VOID LIST CONTINUE BREAK THIS IF ELSE WHILE FOR RETURN LENGTH
-NEW CIN COUT MAIN ICONST FCONST CCONST OROP ANDOP EQUOP RELOP ADDOP MULOP NOTOP INCDEC
+NEW CIN COUT MAIN FCONST CCONST OROP ANDOP EQUOP RELOP ADDOP MULOP NOTOP INCDEC
 SIZEOP LISTFUNC STRING LPAREN RPAREN SEMI DOT COMMA ASSIGN COLON LBRACK RBRACK REFER
-LBRACE RBRACE METH INP OUT ID
+LBRACE RBRACE METH INP OUT
+%token <ival> ICONST
+%token <str> ID
 
 %nonassoc EQUOP RELOP
 %nonassoc LOWER_THAN_ELSE
@@ -30,6 +32,7 @@ LBRACE RBRACE METH INP OUT ID
 	int ival;
 	float fval;
 	char cval;
+	char* str;
 	short int oper;
 	id_t id;
 	expr_t myexpr;
@@ -72,22 +75,22 @@ dims : dims LBRACK ICONST RBRACK {
 		}
 		else if (dim_count == 0) {
 			$$ = malloc(sizeof(array_t));
-			$$->size[MAX_DIMENSIONS - dim] = $3;
+			$$->dim_size[MAX_DIMENSIONS - dim] = $3;
 			$$->dims = 1;
 			dim_count++;
 		}
 		else {
-			$1->size[dim_count] = $3;
+			$1->dim_size[dim_count] = $3;
 			$1->dims++;
 			$$ = $1;
 			dim_count++;
 		}
 	}
-	| LBRACK RBRACK {
-		if (dim_count == MAX_DIMENSIONS) {
+	| dims LBRACK RBRACK {
+		/* if (dim_count == MAX_DIMENSIONS) {
 			//ERROR
 			printf("Error: Exceeded maximum number of dimensions (%d)\n", MAX_DIMENSIONS);
-			if ($1) free($1);
+			if ($$) free($$);
 		}
 		else if (dim_count == 0) {
 			$$ = malloc(sizeof(array_t));
@@ -100,7 +103,7 @@ dims : dims LBRACK ICONST RBRACK {
 			$1->dims++;
 			$$ = $1;
 			dim_count++;
-		}
+		}*/
 	}
     | {$$ = NULL;}
 	;
