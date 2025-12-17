@@ -286,9 +286,9 @@ init_variabledefs : init_variabledefs COMMA init_variabledef  {
 init_variabledef : variabledef initializer {$$ = $1; printf("init_variabledef\n");};
 initializer : ASSIGN init_value | ;
 func_declaration : short_func_declaration | full_func_declaration {printf("sevo");};
-full_func_declaration : full_par_func_header LBRACE decl_statements RBRACE
-		| nopar_class_func_header LBRACE decl_statements RBRACE
-		| nopar_func_header LBRACE decl_statements RBRACE;
+full_func_declaration : full_par_func_header {scope++;} LBRACE decl_statements RBRACE {scope--;}
+		| nopar_class_func_header {scope++;} LBRACE decl_statements RBRACE{scope--;}
+		| nopar_func_header {scope++;} LBRACE decl_statements RBRACE{scope--;};
 full_par_func_header : class_func_header_start LPAREN parameter_list RPAREN
 		| func_header_start LPAREN parameter_list RPAREN;
 class_func_header_start : typename func_class ID
@@ -316,7 +316,8 @@ statement : expression_statement
 	| BREAK SEMI
 	| SEMI;
 expression_statement : general_expression SEMI;
-if_statement : IF LPAREN general_expression RPAREN statement %prec LOWER_THAN_ELSE | IF LPAREN general_expression RPAREN statement ELSE statement;
+if_statement : IF LPAREN general_expression RPAREN statement %prec LOWER_THAN_ELSE |
+		IF LPAREN general_expression RPAREN statement ELSE statement;
 while_statement : WHILE LPAREN general_expression RPAREN statement;
 for_statement : FOR LPAREN optexpr SEMI optexpr SEMI optexpr RPAREN statement;
 optexpr : general_expression | ;
@@ -326,8 +327,8 @@ in_list : in_list INP in_item | in_item;
 in_item : variable;
 out_list: out_list OUT out_item | out_item
 out_item: general_expression | STRING;
-comp_statement: LBRACE decl_statements RBRACE;
-main_function: main_header LBRACE decl_statements RBRACE;
+comp_statement: LBRACE{scope++;} decl_statements {scope--;}RBRACE;
+main_function: main_header {scope++;} LBRACE decl_statements RBRACE {scope--;};
 main_header: INT MAIN LPAREN RPAREN;
 %%
 #include "hashtbl.h"
