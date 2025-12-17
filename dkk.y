@@ -285,10 +285,10 @@ init_variabledefs : init_variabledefs COMMA init_variabledef  {
 
 init_variabledef : variabledef initializer {$$ = $1; printf("init_variabledef\n");};
 initializer : ASSIGN init_value | ;
-func_declaration : short_func_declaration | full_func_declaration {printf("sevo");};
-full_func_declaration : full_par_func_header {scope++;} LBRACE decl_statements RBRACE {scope--;}
-		| nopar_class_func_header {scope++;} LBRACE decl_statements RBRACE{scope--;}
-		| nopar_func_header {scope++;} LBRACE decl_statements RBRACE{scope--;};
+func_declaration : short_func_declaration | full_func_declaration {printf("sevo\n");};
+full_func_declaration : full_par_func_header {scope++;} LBRACE decl_statements RBRACE {hashtbl_get(symtb, scope); scope--;}
+		| nopar_class_func_header {scope++;} LBRACE decl_statements RBRACE{hashtbl_get(symtb, scope);scope--;}
+		| nopar_func_header {scope++;} LBRACE decl_statements RBRACE{hashtbl_get(symtb, scope);scope--;};
 full_par_func_header : class_func_header_start LPAREN parameter_list RPAREN
 		| func_header_start LPAREN parameter_list RPAREN;
 class_func_header_start : typename func_class ID
@@ -327,8 +327,8 @@ in_list : in_list INP in_item | in_item;
 in_item : variable;
 out_list: out_list OUT out_item | out_item
 out_item: general_expression | STRING;
-comp_statement: LBRACE{scope++;} decl_statements {scope--;}RBRACE;
-main_function: main_header {scope++;} LBRACE decl_statements RBRACE {scope--;};
+comp_statement: LBRACE{scope++;} decl_statements {hashtbl_get(symtb, scope);scope--;}RBRACE;
+main_function: main_header {scope++;} LBRACE decl_statements RBRACE {hashtbl_get(symtb, scope);scope--;};
 main_header: INT MAIN LPAREN RPAREN;
 %%
 #include "hashtbl.h"
@@ -353,7 +353,9 @@ void var_decl(id_list_t *var_list, int type) {
 
 	while (curr) {
 		printf("str = %s\n", curr->id->id);
-		hashtbl_insert(symtb, curr->id->id, t, scope, curr->id->arr);
+		if(hashtbl_lookup(symtb, scope, curr->id->id) != -1)
+			printf("semantic error, x2 declare\n");
+		else hashtbl_insert(symtb, curr->id->id, t, scope, curr->id->arr);
 		curr = curr->next;
 		free(prv);
 		prv = curr;
