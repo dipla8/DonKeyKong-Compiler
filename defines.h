@@ -19,10 +19,10 @@ typedef struct {
 typedef struct {
 	char *id;
 	array_t *arr;
-} id_t;
+} my_id_t;
 
 typedef struct IdList {
-	id_t *id;
+	my_id_t *id;
 	struct IdList *next;
 } id_list_t;
 
