@@ -16,8 +16,6 @@ STATIC VOID LIST CONTINUE BREAK THIS IF ELSE WHILE FOR RETURN LENGTH
 NEW CIN COUT MAIN FCONST CCONST OROP ANDOP EQUOP RELOP ADDOP MULOP NOTOP INCDEC
 SIZEOP LISTFUNC STRING LPAREN RPAREN SEMI DOT COMMA ASSIGN COLON LBRACK RBRACK REFER
 LBRACE RBRACE METH INP OUT
-%token <ival> ICONST
-%token <str> ID
 
 %nonassoc EQUOP RELOP
 %nonassoc LOWER_THAN_ELSE
@@ -32,15 +30,17 @@ LBRACE RBRACE METH INP OUT
 	int ival;
 	float fval;
 	char cval;
-	char* str;
 	short int oper;
-	id_t id;
+	char *str;
+	my_id_t *id;
 	expr_t myexpr;
 	type_t type;
 	id_list_t *idlist;
 	array_t *arr;
 }
 
+%token <ival> ICONST
+%token <str> ID
 %type <myexpr> expression
 %type <ival> standard_type typename variable
 %type <id> variabledef init_variabledef
@@ -75,7 +75,7 @@ dims : dims LBRACK ICONST RBRACK {
 		}
 		else if (dim_count == 0) {
 			$$ = malloc(sizeof(array_t));
-			$$->dim_size[MAX_DIMENSIONS - dim] = $3;
+			$$->dim_size[0] = $3;
 			$$->dims = 1;
 			dim_count++;
 		}
@@ -87,23 +87,23 @@ dims : dims LBRACK ICONST RBRACK {
 		}
 	}
 	| dims LBRACK RBRACK {
-		/* if (dim_count == MAX_DIMENSIONS) {
+		if (dim_count == MAX_DIMENSIONS) {
 			//ERROR
 			printf("Error: Exceeded maximum number of dimensions (%d)\n", MAX_DIMENSIONS);
-			if ($$) free($$);
+			if ($1) free($1);
 		}
 		else if (dim_count == 0) {
 			$$ = malloc(sizeof(array_t));
-			$$->size[0] = 0;
+			$$->dim_size[0] = 0;
 			$$->dims++;
 			dim_count++;
 		}
 		else {
-			$1->size[dim_count] = 0;
+			$1->dim_size[dim_count] = 0;
 			$1->dims++;
 			$$ = $1;
 			dim_count++;
-		}*/
+		}
 	}
     | {$$ = NULL;}
 	;
@@ -183,7 +183,7 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 				case 1:{ $$.type = T_INT; break;}
 				case 2:{ $$.type = T_FLOAT; break;}
 				case 3:{ $$.type = T_VOID; break;}
-				case 4:{ $$.type = T_TYPEDEF; break;}
+				case 4:{ $$.type = T_ID; break;}
 				default: {printf("semantic error");}
 			}
 		}
@@ -299,8 +299,8 @@ global_var_declaration : typename init_variabledefs SEMI {
 			  //return;
 		  }
           while (curr) {
-              printf("str = %s\n", curr->id);
-              hashtbl_insert(symtb, curr->id, t, scope);
+              printf("str = %s\n", curr->id->id);
+              hashtbl_insert(symtb, curr->id->id, t, scope, curr->id->arr);
               curr = curr->next;
 			  free(prv);
 			  prv = curr;
@@ -355,8 +355,8 @@ declarations : declarations decltype typename variabledefs SEMI {
 			  //return;
 		  }
           while (curr) {
-              printf("str = %s\n", curr->id);
-              hashtbl_insert(symtb, curr->id, t, scope);
+              printf("str = %s\n", curr->id->id);
+              hashtbl_insert(symtb, curr->id->id, t, scope, curr->id->arr);
               curr = curr->next;
 			  free(prv);
 			  prv = curr;
@@ -380,8 +380,8 @@ declarations : declarations decltype typename variabledefs SEMI {
 			  //return;
 		  }
           while (curr) {
-              printf("str = %s\n", curr->id);
-              hashtbl_insert(symtb, curr->id, t, scope);
+              printf("str = %s\n", curr->id->id);
+              hashtbl_insert(symtb, curr->id->id, t, scope, curr->id->arr);
               curr = curr->next;
 			  free(prv);
 			  prv = curr;
