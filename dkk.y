@@ -5,12 +5,15 @@
 #include "defines.h"
 #include "dkk.tab.h"
 #include "hashtbl.h"
+
 int yylex(void);
 void yyerror(const char *s);
 int scope = 0;
 int dim_count = 0;
 HASHTBL *symtb;
+
 %}
+
 %token TYPEDEF CHAR INT FLOAT CONST UNION CLASS PRIVATE PROTECTED PUBLIC
 STATIC VOID LIST CONTINUE BREAK THIS IF ELSE WHILE FOR RETURN LENGTH
 NEW CIN COUT MAIN FCONST CCONST OROP ANDOP EQUOP RELOP ADDOP MULOP NOTOP INCDEC
@@ -75,6 +78,15 @@ dims : dims LBRACK ICONST RBRACK {
 		}
 		else if (dim_count == 0) {
 			$$ = malloc(sizeof(array_t));
+			if (!$$) {
+				printf("Memory allocation error\n");
+				exit(1);
+			}
+			if ($3 <= 0) {
+				printf("Error: Array dimension must be positive integer\n");
+				free($$);
+				exit(1);
+			}
 			$$->dim_size[0] = $3;
 			$$->dims = 1;
 			dim_count++;
@@ -226,31 +238,7 @@ member_or_method : member
 	| method;
 member : var_declaration
 	| anonymous_union;
-var_declaration : typename variabledefs SEMI {
-	  id_list_t *curr = $2, *prv = $2;
-          char t[8];
-
-          switch ($1) {
-              case 0: strcpy(t, "char\0");  break;
-              case 1: strcpy(t, "int\0");   break;
-              case 2: strcpy(t,"float\0"); break;
-              case 3: strcpy(t,"void\0");  break;
-	      case 4: strcpy(t,"typedef\0"); break;
-              default: strcpy(t, "unknown\0");
-          }
-		  
-		  if (strcmp(t, "unknown") == 0) {
-			  printf("Error: Variable unknown type.\n");
-			  //return;
-		  }
-          while (curr) {
-              printf("str = %s\n", curr->id);
-              hashtbl_insert(symtb, curr->id->id, t, scope, curr->id->arr);
-              curr = curr->next;
-			  free(prv);
-			  prv = curr;
-          }
-      };
+var_declaration : typename variabledefs SEMI { var_decl($2, $1); };
 variabledefs : variabledefs COMMA variabledef {
           id_list_t* n = malloc(sizeof(id_list_t));
           n->id = $3;
@@ -281,31 +269,7 @@ parameter_types : parameter_types COMMA typename pass_list_dims | typename pass_
 pass_list_dims : listspec dims | REFER;
 nopar_func_header : func_header_start LPAREN RPAREN;
 union_declaration : UNION ID union_body SEMI;
-global_var_declaration : typename init_variabledefs SEMI {
-	  id_list_t *curr = $2, *prv = $2;
-          char t[8];
-
-          switch ($1) {
-              case 0: strcpy(t, "char\0");  break;
-              case 1: strcpy(t, "int\0");   break;
-              case 2: strcpy(t,"float\0"); break;
-              case 3: strcpy(t,"void\0");  break;
-	      case 4: strcpy(t,"typedef\0"); break;
-              default: strcpy(t, "unknown\0");
-          }
-		  
-		  if (strcmp(t, "unknown") == 0) {
-			  printf("Error: Variable unknown type.\n");
-			  //return;
-		  }
-          while (curr) {
-              printf("str = %s\n", curr->id->id);
-              hashtbl_insert(symtb, curr->id->id, t, scope, curr->id->arr);
-              curr = curr->next;
-			  free(prv);
-			  prv = curr;
-          }
-      };
+global_var_declaration : typename init_variabledefs SEMI { var_decl($2, $1); };
 init_variabledefs : init_variabledefs COMMA init_variabledef  {
          		 id_list_t* n = malloc(sizeof(id_list_t));
          		 n->id = $3;
@@ -337,56 +301,8 @@ nopar_class_func_header : class_func_header_start LPAREN RPAREN;
 decl_statements : declarations statements
 		| declarations
 		| statements | ;
-declarations : declarations decltype typename variabledefs SEMI {
-	  id_list_t *curr = $4, *prv = $4;
-          char t[8];
-
-          switch ($3) {
-              case 0: strcpy(t, "char\0");  break;
-              case 1: strcpy(t, "int\0");   break;
-              case 2: strcpy(t,"float\0"); break;
-              case 3: strcpy(t,"void\0");  break;
-	      case 4: strcpy(t,"typedef\0"); break;
-              default: strcpy(t, "unknown\0");
-          }
-		  
-		  if (strcmp(t, "unknown") == 0) {
-			  printf("Error: Variable unknown type.\n");
-			  //return;
-		  }
-          while (curr) {
-              printf("str = %s\n", curr->id->id);
-              hashtbl_insert(symtb, curr->id->id, t, scope, curr->id->arr);
-              curr = curr->next;
-			  free(prv);
-			  prv = curr;
-          }
-      }
-		| decltype typename variabledefs SEMI{
-	  id_list_t *curr = $3, *prv = $3;
-          char t[8];
-
-          switch ($2) {
-              case 0: strcpy(t, "char\0");  break;
-              case 1: strcpy(t, "int\0");   break;
-              case 2: strcpy(t,"float\0"); break;
-              case 3: strcpy(t,"void\0");  break;
-	      case 4: strcpy(t,"typedef\0"); break;
-              default: strcpy(t, "unknown\0");
-          }
-		  
-		  if (strcmp(t, "unknown") == 0) {
-			  printf("Error: Variable unknown type.\n");
-			  //return;
-		  }
-          while (curr) {
-              printf("str = %s\n", curr->id->id);
-              hashtbl_insert(symtb, curr->id->id, t, scope, curr->id->arr);
-              curr = curr->next;
-			  free(prv);
-			  prv = curr;
-          }
-      };
+declarations : declarations decltype typename variabledefs SEMI { var_decl($4, $3); }
+		| decltype typename variabledefs SEMI{ var_decl($3, $2); };
 decltype : STATIC | ;
 statements : statements statement | statement;
 statement : expression_statement
@@ -415,9 +331,38 @@ main_function: main_header LBRACE decl_statements RBRACE;
 main_header: INT MAIN LPAREN RPAREN;
 %%
 #include "hashtbl.h"
+
+void var_decl(id_list_t *var_list, int type) {
+	id_list_t *curr = var_list, *prv = var_list;
+	char t[8];
+
+	switch (type) {
+		case T_CHAR: strcpy(t, "char\0");  break;
+		case T_INT: strcpy(t, "int\0");   break;
+		case T_FLOAT: strcpy(t,"float\0"); break;
+		case T_VOID: strcpy(t,"void\0");  break;
+	    case T_ID: strcpy(t,"typedef\0"); break;
+		default: strcpy(t, "unknown\0");
+	}
+	
+	if (strcmp(t, "unknown") == 0) {
+		printf("Error: Variable unknown type.\n");
+		//return;
+	}
+
+	while (curr) {
+		printf("str = %s\n", curr->id->id);
+		hashtbl_insert(symtb, curr->id->id, t, scope, curr->id->arr);
+		curr = curr->next;
+		free(prv);
+		prv = curr;
+	}
+}
+
 void yyerror (char const *s) {
 	printf("error: %s\n", s);
 }
+
 int main(){
 	symtb = hashtbl_create(10, NULL);
 	return yyparse();
