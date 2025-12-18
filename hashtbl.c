@@ -174,7 +174,7 @@ int hashtbl_lookup(HASHTBL *hashtbl, int scope, const char* key){
 	hash_size hash=hashtbl->hashfunc(key)%hashtbl->size;
 	node=hashtbl->nodes[hash];
 	while(node) {
-		if(!strcmp(node->key, key) && (node->scope == scope)) {
+		if(!strcmp(node->key, key) && (node->scope <= scope)) {
 			if(!strcmp(node->data, "char"))
 				return 0;
 			else if(!strcmp(node->data, "int"))
