@@ -15,7 +15,11 @@ typedef struct {
 	int dims;
 	int dim_size[MAX_DIMENSIONS];
 } array_t;
-
+typedef union {
+	float fval;
+	int ival;
+	char cval;
+} union_const;
 typedef struct {
 	char *id;
 	array_t *arr;
@@ -28,6 +32,9 @@ typedef struct IdList {
 
 typedef struct {
 	type_t type ;
+	union_const val;
 } expr_t;
+
+void var_decl(id_list_t *var_list, int type);
 
 #endif

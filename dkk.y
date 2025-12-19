@@ -11,12 +11,13 @@ void yyerror(const char *s);
 int scope = 0;
 int dim_count = 0;
 HASHTBL *symtb;
-
+struct hashnode_s *curr_node;
+int rec_count = 0;
 %}
 
 %token TYPEDEF CHAR INT FLOAT CONST UNION CLASS PRIVATE PROTECTED PUBLIC
 STATIC VOID LIST CONTINUE BREAK THIS IF ELSE WHILE FOR RETURN LENGTH
-NEW CIN COUT MAIN FCONST CCONST OROP ANDOP EQUOP RELOP ADDOP MULOP NOTOP INCDEC
+NEW CIN COUT MAIN FCONST CCONST OROP ANDOP EQUOP RELOP MULOP NOTOP INCDEC
 SIZEOP LISTFUNC STRING LPAREN RPAREN SEMI DOT COMMA ASSIGN COLON LBRACK RBRACK REFER
 LBRACE RBRACE METH INP OUT
 
@@ -41,13 +42,12 @@ LBRACE RBRACE METH INP OUT
 	id_list_t *idlist;
 	array_t *arr;
 }
-
+%token <oper> ADDOP
 %token <ival> ICONST
 %token <str> ID
-%type <myexpr> expression
+%type <myexpr> expression general_expression constant assignment
 %type <ival> standard_type typename variable
 %type <id> variabledef init_variabledef
-%type <type> constant
 %type <idlist> variabledefs init_variabledefs
 %type <arr> dims
 
@@ -183,8 +183,14 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 			     }
 			     else {
 			     	$$.type = $2.type;
+				$$.val = $2.val;
 	                   	printf("correct type\n");
-			     }
+			     	if($1 == 1)
+					if($2.type == T_INT)
+						$$.val.ival = ($2.val.ival * (-1));	
+					if($2.type == T_INT)
+						$$.val.fval = ($2.val.fval * (-1));
+				}
 			   }
 	| SIZEOP expression {$$.type = T_INT;}
 	| INCDEC variable
@@ -202,31 +208,54 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 	| variable LPAREN expression_list RPAREN
 	| LENGTH LPAREN general_expression RPAREN
 	| NEW LPAREN general_expression RPAREN
-	| constant {$$.type = $1;}
+	| constant {$$.type = $1.type; $$.val = $1.val;}
 	| LPAREN general_expression RPAREN
 	| LPAREN standard_type RPAREN
 	| listexpression;
-variable : variable LBRACK general_expression RBRACK // matrix
+variable : variable LBRACK general_expression RBRACK {
+							if($3.type != T_INT)
+								printf("semantic error\n");
+							else{
+							     if(rec_count > curr_node->arr->dims)
+								printf("semantic error\n");
+						 	     if($3.val.ival <0 || $3.val.ival >= curr_node->arr->dim_size[rec_count]){
+							    //if($3.val.ival <0 || $3.val.ival >= curr_node->arr->dim_size[curr_node->arr->dims - rec_count]){
+								printf("dims:%d, rec_count: %d\n", curr_node->arr->dims, rec_count);
+								printf("curr_dimsize %d, ival %d\n", curr_node->arr->dim_size[rec_count], $3.val.ival);
+								printf("semantic error2\n");}
+							     else rec_count++;
+							}
+					} // matrix
 	| variable DOT ID // class
-	| LISTFUNC LPAREN general_expression RPAREN // list
+	| LISTFUNC LPAREN general_expression RPAREN {} // list
 	| decltype ID { 
-			int p;
-
-			if((p = hashtbl_lookup(symtb, scope, yylval.str)) == -1)
+			struct hashnode_s *p;
+			rec_count = 0;
+			if((p = hashtbl_lookup(symtb, scope, yylval.str)) == NULL)
 				printf("semantics error\n");
-			else
-				$$ = p;
+			else{
+				curr_node = p;
+				if(!strcmp(p->data, "char"))
+					$$ = 0;
+				else if(!strcmp(p->data, "int"))
+					$$ = 1;
+				else if(!strcmp(p->data, "float"))
+					$$ = 2;
+				else if(!strcmp(p->data, "void"))
+					$$ = 3;
+				else $$ = 4;
+			}
 		}
 	| THIS; // class
 general_expression : general_expression COMMA general_expression
-	| assignment;
+	| assignment{$$.type = $1.type; $$.val = $1.val;};
 assignment : variable ASSIGN assignment
 	| variable ASSIGN STRING
-	| expression;
+	| expression {$$.type = $1.type; $$.val = $1.val;};
 expression_list : general_expression | ;
-constant : CCONST {$$ = T_CHAR;}
-	| ICONST {$$ = T_INT;}
-	| FCONST {$$ = T_FLOAT;};
+constant : CCONST {$$.type = T_CHAR; $$.val.cval = yylval.cval;}
+	| ICONST {$$.type = T_INT; $$.val.ival = yylval.ival;}
+	| FCONST {$$.type = T_FLOAT; $$.val.fval = yylval.fval;};
 listexpression : LBRACK expression_list RBRACK;
 init_values : init_values COMMA init_value | init_value;
 class_declaration : CLASS ID class_body SEMI;
@@ -358,7 +387,7 @@ void var_decl(id_list_t *var_list, int type) {
 
 	while (curr) {
 		printf("str = %s\n", curr->id->id);
-		if(hashtbl_lookup(symtb, scope, curr->id->id) != -1)
+		if(hashtbl_lookup(symtb, scope, curr->id->id) != NULL)
 			printf("semantic error, x2 declare\n");
 		else hashtbl_insert(symtb, curr->id->id, t, scope, curr->id->arr);
 		curr = curr->next;

@@ -41,5 +41,5 @@ void hashtbl_destroy(HASHTBL *hashtbl);
 int hashtbl_insert(HASHTBL *hashtbl, const char *key, char *data, int scope, array_t *arr);
 int hashtbl_remove(HASHTBL *hashtbl, const char *key,int scope, array_t *arr);
 void *hashtbl_get(HASHTBL *hashtbl, int scope);
-int hashtbl_lookup(HASHTBL *hashtbl, int scope, const char *key);
+struct hashnode_s *hashtbl_lookup(HASHTBL *hashtbl, int scope, const char *key);
 #endif
