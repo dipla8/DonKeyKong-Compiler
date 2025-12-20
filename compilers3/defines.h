@@ -51,6 +51,8 @@ typedef struct IdList {
 typedef struct {
 	type_t type ;
 	union_const val;
+	int rec_count;
+	struct hashnode_s *n;
 } expr_t;
 
 typedef struct {

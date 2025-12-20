@@ -195,18 +195,18 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 				}
 			   }
 	| SIZEOP expression {$$.type = T_INT; $$.val.ival = 0;}
-	| INCDEC variable {var_to_expr(&$$, $2.ival);}
-	| variable INCDEC {var_to_expr(&$$, $1.ival);}
-	| variable {var_to_expr(&$$, $1.ival); printf("%d\n", $$.type); printf("%d\n", $$.val.ival);}
+	| INCDEC variable {var_to_expr(&$$, $2.ival);$$.rec_count = $2.rec_count; $$.n = $2.n;}
+	| variable INCDEC {var_to_expr(&$$, $1.ival);$$.rec_count = $1.rec_count; $$.n = $1.n;}
+	| variable {var_to_expr(&$$, $1.ival); $$.rec_count = $1.rec_count; $$.n = $1.n; printf("%d\n", $$.type); printf("%d\n", $$.val.ival);}
 	| variable LPAREN expression_list RPAREN {var_to_expr(&$$, $1.ival);}
 	| LENGTH LPAREN general_expression RPAREN
 	| NEW LPAREN general_expression RPAREN
-	| constant {$$.type = $1.type; $$.val = $1.val;}
+	| constant {$$.type = $1.type; $$.val = $1.val; $$.n = malloc(sizeof(expr_t)); $$.n->arr = malloc(sizeof(array_t)); $$.n->arr->dims = 0; $$.rec_count = 0;}
 	| LPAREN general_expression RPAREN
 	| LPAREN standard_type RPAREN
 	| listexpression;
 variable : variable LBRACK general_expression RBRACK {
-							if($3.type != T_INT)
+							if($3.type != T_INT ||($3.n->arr != NULL) && ($3.rec_count != $3.n->arr->dims))
 								printf("semantic error here\n");
 							else{
 							     if($1.rec_count > $1.n->arr->dims)
@@ -216,7 +216,12 @@ variable : variable LBRACK general_expression RBRACK {
 								printf("dims:%d, rec_count: %d\n", $1.n->arr->dims, $1.rec_count);
 								printf("curr_dimsize %d, ival %d\n", $1.n->arr->dim_size[$1.rec_count], $3.val.ival);
 								printf("semantic error2\n");}
-							     	else $$.rec_count = $1.rec_count+1;
+							     	else {
+									if($3.rec_count != $3.n->arr->dims)
+										printf("semantic error\n");
+									$$.rec_count = $1.rec_count+1;
+									$$.n = $1.n;
+								}
 							}
 					} // matrix
 	| variable DOT ID // class
@@ -241,10 +246,10 @@ variable : variable LBRACK general_expression RBRACK {
 		}
 	| THIS; // class
 general_expression : general_expression COMMA general_expression
-	| assignment{$$.type = $1.type; $$.val = $1.val;};
-assignment : variable ASSIGN assignment
+	| assignment{$$.type = $1.type; $$.val = $1.val; $$.rec_count = $1.rec_count; $$.n = $1.n;};
+assignment : variable ASSIGN assignment {if($1.rec_count != $1.n->arr->dims) printf("semantic error\n");}
    	   | variable ASSIGN STRING 
-	| expression {$$.type = $1.type; $$.val = $1.val;};
+	| expression {$$.type = $1.type; $$.val = $1.val;$$.rec_count = $1.rec_count; $$.n = $1.n; printf("n is null=%d\n", $1.n == NULL);};
 expression_list : general_expression | ;
 constant : CCONST {$$.type = T_CHAR; $$.val.cval = yylval.cval;}
 	| ICONST {$$.type = T_INT; $$.val.ival = yylval.ival;}
