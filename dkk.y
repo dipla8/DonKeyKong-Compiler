@@ -11,7 +11,7 @@ void yyerror(const char *s);
 int scope = 0;
 int dim_count = 0;
 HASHTBL *symtb;
-struct hashnode_s *curr_node;
+struct hashnode_s *curr_node = NULL;
 int rec_count = 0;
 %}
 
@@ -192,20 +192,11 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 						$$.val.fval = ($2.val.fval * (-1));
 				}
 			   }
-	| SIZEOP expression {$$.type = T_INT;}
-	| INCDEC variable
-	| variable INCDEC
-	| variable { 
-			switch($1){
-				case 0:{ $$.type = T_CHAR; break;}
-				case 1:{ $$.type = T_INT; break;}
-				case 2:{ $$.type = T_FLOAT; break;}
-				case 3:{ $$.type = T_VOID; break;}
-				case 4:{ $$.type = T_ID; break;}
-				default: {printf("semantic error");}
-			}
-		}
-	| variable LPAREN expression_list RPAREN
+	| SIZEOP expression {$$.type = T_INT; $$.val.ival = 0;}
+	| INCDEC variable {var_to_expr(&$$, $2);}
+	| variable INCDEC {var_to_expr(&$$, $1);}
+	| variable {var_to_expr(&$$, $1); printf("%d\n", $$.type); printf("%d\n", $$.val.ival);}
+	| variable LPAREN expression_list RPAREN {var_to_expr(&$$, $1);}
 	| LENGTH LPAREN general_expression RPAREN
 	| NEW LPAREN general_expression RPAREN
 	| constant {$$.type = $1.type; $$.val = $1.val;}
@@ -214,27 +205,27 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 	| listexpression;
 variable : variable LBRACK general_expression RBRACK {
 							if($3.type != T_INT)
-								printf("semantic error\n");
+								printf("semantic error here\n");
 							else{
 							     if(rec_count > curr_node->arr->dims)
-								printf("semantic error\n");
-						 	     if($3.val.ival <0 || $3.val.ival >= curr_node->arr->dim_size[rec_count]){
+								printf("semantic error there\n");
+						 	     else if($3.val.ival <0 || $3.val.ival >= curr_node->arr->dim_size[rec_count]){
 							    //if($3.val.ival <0 || $3.val.ival >= curr_node->arr->dim_size[curr_node->arr->dims - rec_count]){
 								printf("dims:%d, rec_count: %d\n", curr_node->arr->dims, rec_count);
 								printf("curr_dimsize %d, ival %d\n", curr_node->arr->dim_size[rec_count], $3.val.ival);
 								printf("semantic error2\n");}
-							     else rec_count++;
+							     	else rec_count++;
 							}
 					} // matrix
 	| variable DOT ID // class
 	| LISTFUNC LPAREN general_expression RPAREN {} // list
 	| decltype ID { 
 			struct hashnode_s *p;
-			rec_count = 0;
 			if((p = hashtbl_lookup(symtb, scope, yylval.str)) == NULL)
 				printf("semantics error\n");
 			else{
-				curr_node = p;
+			 	if(curr_node == NULL)
+					curr_node = p;
 				if(!strcmp(p->data, "char"))
 					$$ = 0;
 				else if(!strcmp(p->data, "int"))
@@ -249,8 +240,8 @@ variable : variable LBRACK general_expression RBRACK {
 	| THIS; // class
 general_expression : general_expression COMMA general_expression
 	| assignment{$$.type = $1.type; $$.val = $1.val;};
-assignment : variable ASSIGN assignment
-	| variable ASSIGN STRING
+assignment : variable ASSIGN assignment {curr_node = NULL; rec_count = 0;}
+	| variable ASSIGN STRING {curr_node = NULL; rec_count = 0;}
 	| expression {$$.type = $1.type; $$.val = $1.val;};
 expression_list : general_expression | ;
 constant : CCONST {$$.type = T_CHAR; $$.val.cval = yylval.cval;}
@@ -396,6 +387,17 @@ void var_decl(id_list_t *var_list, int type) {
 	}
 }
 
+void var_to_expr(expr_t *expr, int type){ 
+	switch(type){
+		case 0:{ expr->type = T_CHAR; break;}
+		case 1:{ expr->type = T_INT; break;}
+		case 2:{ expr->type = T_FLOAT; break;}
+		case 3:{ expr->type = T_VOID; break;}
+		case 4:{ expr->type = T_ID; break;}
+		default: {printf("semantic error func\n");}
+	}
+	expr->val.ival = 0;
+}
 void yyerror (char const *s) {
 	printf("error: %s\n", s);
 }

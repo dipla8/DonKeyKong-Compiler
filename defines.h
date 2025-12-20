@@ -36,5 +36,5 @@ typedef struct {
 } expr_t;
 
 void var_decl(id_list_t *var_list, int type);
-
+void var_to_expr(expr_t *expr, int type);
 #endif
