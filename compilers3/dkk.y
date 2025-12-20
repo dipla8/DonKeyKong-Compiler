@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include "defines.h"
 #include "dkk.tab.h"
-#include "hashtbl.h"
 
 
 
@@ -42,12 +41,14 @@ LBRACE RBRACE METH INP OUT
 	id_list_t *idlist;
 	array_t *arr;
 	var_t myvar;
+	typename_t mytype;
 }
 %token <oper> ADDOP
 %token <ival> ICONST
 %token <str> ID
 %type <myexpr> expression general_expression constant assignment
-%type <ival> standard_type typename 
+%type <ival> standard_type
+%type <mytype> typename
 %type <id> variabledef init_variabledef
 %type <idlist> variabledefs init_variabledefs
 %type <arr> dims
@@ -62,11 +63,9 @@ global_declaration : typedef_declaration
 	| union_declaration
 	| global_var_declaration
 	| func_declaration {printf("global");};
-typedef_declaration : TYPEDEF typename listspec ID {
-	dim_count = 0;
-} dims SEMI {/*must add routine*/}
-typename : standard_type {$$ = $1;} 
-		| ID {$$ = T_ID;};
+typedef_declaration : TYPEDEF typename listspec ID {dim_count = 0;} dims SEMI {hashtbl_insert(symtb, $4, $2.name , scope, $6, 1);} // scope is always 0
+typename : standard_type {$$.type = $1; if($1==0) $$.name = "char"; else if($1==1) $$.name = "int"; else if($1==2) $$.name = "float"; else if($1==3) $$.name = "void";}
+		| ID {struct hashnode_s *p = hashtbl_lookup(symtb, scope, $1); if(p == NULL || p->istype == 0) printf("semantic error\n");else{$$.type = T_ID; $$.name = p->key;}};
 standard_type : CHAR {printf("got char\n"); $$ = T_CHAR;}
 		| INT {printf("got int\n"); $$ = T_INT;}
 		| FLOAT {printf("got float\n"); $$ = T_FLOAT;}
@@ -265,7 +264,7 @@ member_or_method : member
 	| method;
 member : var_declaration
 	| anonymous_union;
-var_declaration : typename variabledefs SEMI { var_decl($2, $1); };
+var_declaration : typename variabledefs SEMI { var_decl($2, $1.type); };
 variabledefs : variabledefs COMMA variabledef {
           id_list_t* n = malloc(sizeof(id_list_t));
           n->id = $3;
@@ -296,12 +295,12 @@ func_header_start : typename ID {id_list_t* n = malloc(sizeof(id_list_t));
 				n->id->id = $2;
 				n->id->arr = NULL;
        			 	n->next = NULL;
-				var_decl(n, $1);} | LIST ID;
+				var_decl(n, $1.type);} | LIST ID;
 parameter_types : parameter_types COMMA typename pass_list_dims | typename pass_list_dims;
 pass_list_dims : listspec dims | REFER;
 nopar_func_header : func_header_start LPAREN RPAREN;
 union_declaration : UNION ID union_body SEMI;
-global_var_declaration : typename init_variabledefs SEMI { var_decl($2, $1); };
+global_var_declaration : typename init_variabledefs SEMI { var_decl($2, $1.type); };
 init_variabledefs : init_variabledefs COMMA init_variabledef  {
          		 id_list_t* n = malloc(sizeof(id_list_t));
          		 n->id = $3;
@@ -333,8 +332,8 @@ nopar_class_func_header : class_func_header_start LPAREN RPAREN;
 decl_statements : declarations statements
 		| declarations
 		| statements | ;
-declarations : declarations decltype typename variabledefs SEMI { var_decl($4, $3); }
-		| decltype typename variabledefs SEMI{ var_decl($3, $2); };
+declarations : declarations decltype typename variabledefs SEMI { var_decl($4, $3.type); }
+		| decltype typename variabledefs SEMI{ var_decl($3, $2.type); };
 decltype : STATIC | ;
 statements : statements statement | statement;
 statement : expression_statement
@@ -363,7 +362,6 @@ comp_statement: LBRACE{scope++;} decl_statements {hashtbl_get(symtb, scope);scop
 main_function: main_header {scope++;} LBRACE decl_statements RBRACE {hashtbl_get(symtb, scope);scope--;};
 main_header: INT MAIN LPAREN RPAREN;
 %%
-#include "hashtbl.h"
 
 void var_decl(id_list_t *var_list, int type) {
 	id_list_t *curr = var_list, *prv = var_list;
@@ -387,7 +385,7 @@ void var_decl(id_list_t *var_list, int type) {
 		printf("str = %s\n", curr->id->id);
 		if(hashtbl_lookup(symtb, scope, curr->id->id) != NULL)
 			printf("semantic error, x2 declare\n");
-		else hashtbl_insert(symtb, curr->id->id, t, scope, curr->id->arr);
+		else hashtbl_insert(symtb, curr->id->id, t, scope, curr->id->arr, 0);
 		curr = curr->next;
 		free(prv);
 		prv = curr;

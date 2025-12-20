@@ -2,6 +2,7 @@
 #define DEFINES_H
 #define MAX_DIMENSIONS 5
 
+#include <stdlib.h>
 typedef size_t hash_size;
 
 typedef struct {
@@ -14,6 +15,7 @@ struct hashnode_s {
         char *data;
         int scope;
         array_t *arr;
+	int istype;
         struct hashnode_s *next;
 };
 
@@ -60,6 +62,17 @@ typedef struct {
 	int ival;
 	struct hashnode_s *n;
 }var_t;
+
+typedef struct {
+	type_t type;
+	char *name;
+}typename_t;
+HASHTBL *hashtbl_create(hash_size size, hash_size (*hashfunc)(const char *));
+void hashtbl_destroy(HASHTBL *hashtbl);
+int hashtbl_insert(HASHTBL *hashtbl, const char *key, char *data, int scope, array_t *arr, int istype);
+int hashtbl_remove(HASHTBL *hashtbl, const char *key,int scope, array_t *arr);
+void *hashtbl_get(HASHTBL *hashtbl, int scope);
+struct hashnode_s *hashtbl_lookup(HASHTBL *hashtbl, int scope, const char *key);
 void var_decl(id_list_t *var_list, int type);
 void var_to_expr(expr_t *expr, int type);
 #endif

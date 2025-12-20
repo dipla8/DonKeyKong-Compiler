@@ -13,7 +13,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 Retrieved from: http://en.literateprograms.org/Hash_table_(C)?oldid=19638
 */
 
-#include"hashtbl.h"
 #include "defines.h"
 
 #include<string.h>
@@ -78,12 +77,12 @@ void hashtbl_destroy(HASHTBL *hashtbl)
 	free(hashtbl);
 }
 
-int hashtbl_insert(HASHTBL *hashtbl, const char *key, char* data ,int scope, array_t *arr)
+int hashtbl_insert(HASHTBL *hashtbl, const char *key, char* data ,int scope, array_t *arr, int istype)
 {
 	struct hashnode_s *node;
 	hash_size hash=hashtbl->hashfunc(key)%hashtbl->size;
 
-	printf("\t\t\t\t\tHASHTBL_INSERT(): KEY = %s, HASH = %ld,  \tDATA = %s, SCOPE = %d\n", key, hash, data, scope);
+	printf("\t\t\t\t\tHASHTBL_INSERT(): KEY = %s, HASH = %ld,  DATA = %s, SCOPE = %d, ISTYPE = %d\n", key, hash, data, scope, istype);
 
 	node=hashtbl->nodes[hash];
 	while(node) {
@@ -114,6 +113,7 @@ int hashtbl_insert(HASHTBL *hashtbl, const char *key, char* data ,int scope, arr
 	}
 
 	node->scope = scope;
+	node->istype = istype;
 	node->next=hashtbl->nodes[hash];
 	hashtbl->nodes[hash]=node;
 
