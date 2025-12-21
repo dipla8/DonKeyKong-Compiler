@@ -104,19 +104,36 @@ int hashtbl_insert(HASHTBL *hashtbl, const char *key, char* data ,int scope, arr
 		free(node);
 		return -1;
 	}
-
-	if (arr != NULL){
-		node->arr = malloc(sizeof(array_t));
-		memcpy(node->arr, arr, sizeof(array_t));
-	} else {
-		node->arr = NULL;
+	struct hashnode_s *p = hashtbl_lookup(hashtbl, scope, data);
+	if(p != NULL){
+		if(p->arr != NULL){
+			node->arr = malloc(sizeof(array_t));
+			memcpy(node->arr, p->arr, sizeof(array_t));
+		}
+		if(arr != NULL){
+			if(node->arr == NULL){
+				node->arr = malloc(sizeof(array_t));
+				node->arr->dims = 0;
+			}
+			for(int i= node->arr->dims; i<node->arr->dims + arr->dims; i++)
+				node->arr->dim_size[i] = arr->dim_size[i - node->arr->dims];
+			node->arr->dims = node->arr->dims + arr->dims;
+		}
 	}
-
+	else {
+		if (arr != NULL){
+			node->arr = malloc(sizeof(array_t));
+			memcpy(node->arr, arr, sizeof(array_t));
+		} 
+		else {
+			node->arr = NULL;
+		}
+	}
 	node->scope = scope;
 	node->istype = istype;
 	node->next=hashtbl->nodes[hash];
 	hashtbl->nodes[hash]=node;
-
+	
 	return 0;
 }
 

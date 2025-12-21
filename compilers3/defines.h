@@ -1,6 +1,6 @@
 #ifndef DEFINES_H
 #define DEFINES_H
-#define MAX_DIMENSIONS 5
+#define MAX_DIMENSIONS 15
 
 #include <stdlib.h>
 typedef size_t hash_size;
@@ -73,6 +73,6 @@ int hashtbl_insert(HASHTBL *hashtbl, const char *key, char *data, int scope, arr
 int hashtbl_remove(HASHTBL *hashtbl, const char *key,int scope, array_t *arr);
 void *hashtbl_get(HASHTBL *hashtbl, int scope);
 struct hashnode_s *hashtbl_lookup(HASHTBL *hashtbl, int scope, const char *key);
-void var_decl(id_list_t *var_list, int type);
+void var_decl(id_list_t *var_list, char *data);
 void var_to_expr(expr_t *expr, int type);
 #endif
