@@ -1,0 +1,80 @@
+#ifndef DEFINES_H
+#define DEFINES_H
+#define MAX_DIMENSIONS 15
+
+#include <stdlib.h>
+typedef size_t hash_size;
+
+typedef struct {
+	int dims;
+	int dim_size[MAX_DIMENSIONS];
+} array_t;
+
+typedef struct hashtbl {
+        hash_size size;
+        struct hashnode_s **nodes;
+        hash_size (*hashfunc)(const char *);
+} HASHTBL;
+typedef struct{
+	HASHTBL *classtb;
+	char *superclass;
+}class_t;
+
+struct hashnode_s {
+        char *key;
+        char *data;
+        int scope;
+        array_t *arr;
+	class_t *cla;
+	int istype;
+        int visibility;
+	struct hashnode_s *next;
+};
+
+typedef enum {
+	T_CHAR,
+	T_INT,
+	T_FLOAT,
+	T_VOID,
+	T_ID
+} type_t;
+
+typedef union {
+	float fval;
+	int ival;
+	char cval;
+} union_const
+;
+typedef struct {
+	char *id;
+	array_t *arr;
+	char *data;
+} my_id_t;
+
+typedef struct IdList {
+	my_id_t *id;
+	struct IdList *next;
+} id_list_t;
+
+typedef struct {
+	type_t type ;
+	union_const val;
+	int rec_count;
+	struct hashnode_s *n;
+} expr_t;
+
+typedef struct {
+	int rec_count;
+	int ival;
+	struct hashnode_s *n;
+}var_t;
+
+HASHTBL *hashtbl_create(hash_size size, hash_size (*hashfunc)(const char *));
+void hashtbl_destroy(HASHTBL *hashtbl);
+int hashtbl_insert(HASHTBL *hashtbl, const char *key, char *data, int scope, array_t *arr, int istype, int visibility);
+int hashtbl_remove(HASHTBL *hashtbl, const char *key,int scope, array_t *arr);
+void *hashtbl_get(HASHTBL *hashtbl, int scope);
+struct hashnode_s *hashtbl_lookup(HASHTBL *hashtbl, int scope, const char *key, int perm);
+void var_decl(id_list_t *var_list);
+void var_to_expr(expr_t *expr, int type);
+#endif
