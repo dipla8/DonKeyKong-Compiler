@@ -83,7 +83,7 @@ int hashtbl_insert(HASHTBL *hashtbl, const char *key, char* data ,int scope, arr
 	hash_size hash=hashtbl->hashfunc(key)%hashtbl->size;
 
 	printf("\t\t\t\t\tHASHTBL_INSERT(): KEY = %s, HASH = %ld,  DATA = %s, SCOPE = %d, ISTYPE = %d, VIS = %d\n", key, hash, data, scope, istype, visibility);
-
+	
 	node=hashtbl->nodes[hash];
 	while(node) {
 		if(!strcmp(node->key, key) && (node->scope == scope)) {
@@ -109,7 +109,21 @@ int hashtbl_insert(HASHTBL *hashtbl, const char *key, char* data ,int scope, arr
 		node->cla = malloc(sizeof(class_t));
 		node->cla->classtb = hashtbl_create(5, NULL);	
 	}
+
+	if(!strcmp(data, "union")){
+		node->un = malloc(sizeof(union_t));
+		node->un->untb = hashtbl_create(4, NULL);	
+	}
+	else
+		node->un = NULL; 
+	if(!strcmp(data, "func")){
+		node->func = malloc(sizeof(func_t));	
+	}
+	else
+		node->func = NULL;
+
 	struct hashnode_s *p = hashtbl_lookup(hashtbl, scope, data, 0);
+	printf("RIGHT AFTR LOOKUP\n");
 	if(p != NULL){
 		if(p->cla != NULL){
 			node->cla = malloc(sizeof(class_t));
@@ -196,11 +210,13 @@ struct hashnode_s *hashtbl_lookup(HASHTBL *hashtbl, int scope, const char* key, 
 	struct hashnode_s *node;
 	hash_size hash=hashtbl->hashfunc(key)%hashtbl->size;
 	node=hashtbl->nodes[hash];
+	
 	while(node) {
 		if(!strcmp(node->key, key) && (node->scope <= scope) && node->visibility <= perm) {
 			return node;
-		}
+		}	
 		node=node->next;
 	}
+	
 	return NULL;
 }

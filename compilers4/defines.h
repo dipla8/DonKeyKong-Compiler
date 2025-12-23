@@ -20,12 +20,29 @@ typedef struct{
 	char *superclass;
 }class_t;
 
+typedef struct{
+	HASHTBL *untb;
+}union_t;
+
+typedef struct MyList {
+	char* type;
+	struct MyList *next;
+} par_list_t;
+
+typedef struct {
+	int header_declared;
+	char* ret_type;
+	par_list_t *node;
+}func_t;
+
 struct hashnode_s {
         char *key;
         char *data;
         int scope;
         array_t *arr;
 	class_t *cla;
+	union_t *un;
+	func_t *func;
 	int istype;
         int visibility;
 	struct hashnode_s *next;
@@ -69,6 +86,11 @@ typedef struct {
 	struct hashnode_s *n;
 }var_t;
 
+typedef struct {
+	char* type;
+	char* name;
+}header_t;
+
 HASHTBL *hashtbl_create(hash_size size, hash_size (*hashfunc)(const char *));
 void hashtbl_destroy(HASHTBL *hashtbl);
 int hashtbl_insert(HASHTBL *hashtbl, const char *key, char *data, int scope, array_t *arr, int istype, int visibility);
@@ -77,4 +99,5 @@ void *hashtbl_get(HASHTBL *hashtbl, int scope);
 struct hashnode_s *hashtbl_lookup(HASHTBL *hashtbl, int scope, const char *key, int perm);
 void var_decl(id_list_t *var_list);
 void var_to_expr(expr_t *expr, int type);
+void header_decl_check(HASHTBL *hashtbl);
 #endif
