@@ -222,18 +222,27 @@ variable : variable LBRACK general_expression RBRACK {
 								}
 							}
 					} // matrix
-	| variable DOT ID {if($1.n == NULL) printf("semantic error 1\n");
-			if($1.n->cla == NULL)
-				printf("semantic error 2\n");
-			struct hashnode_s *p = $1.n;
-			int perm = 2; // INITIALLY, PERMISSION = 2
-			while(hashtbl_lookup(p->cla->classtb, scope, $3, perm) == NULL){
-				if(p->cla->superclass == NULL)
+	| variable DOT ID { if($1.n == NULL) printf("semantic error 1\n");
+			    struct hashnode_s *p;
+                            if ($1.n->un != NULL) {
+				
+				if (hashtbl_lookup(p->un->untb, scope, $3, 0) == NULL) 
 					printf("semantic error 3\n");
-				printf("psaxnw father %s\n", p->cla->superclass);
-				perm = 1;
-				p = hashtbl_lookup(symtb, scope, p->cla->superclass, 0);
-			}
+			    }
+			    else if ($1.n->cla != NULL) {
+			    	
+				int perm = 2; // INITIALLY, PERMISSION = 2
+				while(hashtbl_lookup(p->cla->classtb, scope, $3, perm) == NULL){
+					if(p->cla->superclass == NULL)
+						printf("semantic error 3\n");
+					printf("psaxnw father %s\n", p->cla->superclass);
+					perm = 1;
+					p = hashtbl_lookup(symtb, scope, p->cla->superclass, 0);
+				}
+			    }
+			    else 
+				printf("semantic error 2\n");
+			
 			$$.rec_count = 0;
 			$$.ival =0;
 			if(p == NULL)
@@ -243,7 +252,7 @@ variable : variable LBRACK general_expression RBRACK {
 				p->arr->dims = 0;
 			}
 			$$.n = p;
-			}// class
+			}// class and unions
 	| LISTFUNC LPAREN general_expression RPAREN {} // list
 	| decltype ID { 
 			struct hashnode_s *p;
@@ -279,7 +288,7 @@ constant : CCONST {$$.type = T_CHAR; $$.val.cval = yylval.cval;}
 	| FCONST {$$.type = T_FLOAT; $$.val.fval = yylval.fval;};
 listexpression : LBRACK expression_list RBRACK;
 init_values : init_values COMMA init_value | init_value;
-class_declaration : CLASS ID {hashtbl_insert(symtb, $2, "class", scope, NULL, 1, 0); struct hashnode_s *p = hashtbl_lookup(symtb, scope, $2, 0); currtb = p->cla->classtb;} class_body SEMI {struct hashnode_s *p = hashtbl_lookup(symtb, scope, $2, 0); p->cla->superclass = $4;currtb = symtb; currvis = 0;};
+class_declaration : CLASS ID {hashtbl_insert(symtb, $2, "class", scope, NULL, 1, 0); struct hashnode_s *p = hashtbl_lookup(symtb, scope, $2, 0); currtb = p->cla->classtb;}class_body SEMI {struct hashnode_s *p = hashtbl_lookup(symtb, scope, $2, 0); p->cla->superclass = $4;currtb = symtb; currvis = 0;};
 class_body : parent LBRACE members_methods RBRACE {$$ = $1;};
 parent : COLON ID {$$ = $2;}|  {$$ = NULL;};
 members_methods : members_methods access member_or_method | access member_or_method;
@@ -324,7 +333,7 @@ func_header_start : typename ID {id_list_t* n = malloc(sizeof(id_list_t));
 parameter_types : parameter_types COMMA typename pass_list_dims | typename pass_list_dims;
 pass_list_dims : listspec dims | REFER;
 nopar_func_header : func_header_start LPAREN RPAREN;
-union_declaration : UNION ID union_body SEMI;
+union_declaration : UNION ID {hashtbl_insert(symtb, $2, "union", 0, NULL, 1, 0); struct hashnode_s *p = hashtbl_lookup(symtb, scope, $2, 0); currtb = p->un->untb;} union_body SEMI {currtb = symtb;};
 global_var_declaration : typename init_variabledefs SEMI {$2->id->data = $1; var_decl($2);};
 init_variabledefs : init_variabledefs COMMA init_variabledef  {
          		 id_list_t* n = malloc(sizeof(id_list_t));
@@ -392,7 +401,7 @@ void var_decl(id_list_t *var_list) {
 	id_list_t *curr = var_list, *prv = var_list;
 	while (curr) {
 		printf("str = %s\n", curr->id->id);
-		struct hashnode_s *p = hashtbl_lookup(symtb, scope, curr->id->id, 0);
+		struct hashnode_s *p = hashtbl_lookup(currtb, scope, curr->id->id, 0);
 		if(p != NULL && p->scope == scope)
 			printf("semantic error, x2 declare\n");
 		else hashtbl_insert(currtb, curr->id->id, curr->id->data, scope, curr->id->arr, 0, currvis);
