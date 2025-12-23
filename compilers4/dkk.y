@@ -43,6 +43,8 @@ LBRACE RBRACE METH INP OUT
 	id_list_t *idlist;
 	array_t *arr;
 	var_t myvar;
+	header_t myhdr;
+	par_list_t *par_list;
 }
 %token <oper> ADDOP
 %token <ival> ICONST
@@ -50,9 +52,11 @@ LBRACE RBRACE METH INP OUT
 %type <myexpr> expression general_expression constant assignment
 %type <id> variabledef init_variabledef
 %type <idlist> variabledefs init_variabledefs
+%type <par_list> parameter_types, parameter_list
 %type <arr> dims
 %type <myvar> variable
 %type <str> standard_type typename class_body parent
+%type <myhdr> func_header_start 
 %%
 program: global_declarations main_function {exit(0);};
 global_declarations: global_declarations global_declaration | ;
@@ -61,7 +65,7 @@ global_declaration : typedef_declaration
 	| class_declaration
 	| union_declaration
 	| global_var_declaration
-	| func_declaration {printf("global");};
+	| func_declaration;
 typedef_declaration : TYPEDEF typename listspec ID {dim_count = 0;} dims SEMI {hashtbl_insert(symtb, $4, $2 , scope, $6, 1, currvis);} // scope is always 0
 typename : standard_type {$$ = $1;}
 		| ID {struct hashnode_s *p = hashtbl_lookup(symtb, scope, $1, 0); if(p == NULL || p->istype == 0) printf("semantic error\n");else{$$ = p->key;}};
@@ -322,15 +326,36 @@ fields : fields field | field;
 field : var_declaration;
 method : short_func_declaration;
 short_func_declaration : short_par_func_header SEMI | nopar_func_header SEMI;
-short_par_func_header : func_header_start LPAREN parameter_types RPAREN;
-func_header_start : typename ID {id_list_t* n = malloc(sizeof(id_list_t));
-          			n->id = malloc(sizeof(my_id_t));
-				n->id->id = $2;
-				n->id->arr = NULL;
-       			 	n->id->data = $1;
-				n->next = NULL;
-				var_decl(n);} | LIST ID;
-parameter_types : parameter_types COMMA typename pass_list_dims | typename pass_list_dims;
+short_par_func_header : func_header_start LPAREN parameter_types RPAREN {struct hashnode_s *p = hashtbl_lookup(symtb, scope, $1.name, 0);
+									  if (p != NULL && p->istype == 1) printf("semantic error: x2 header declaration\n");
+									  else { 
+									  	hashtbl_insert(symtb, $1.name, "func", scope, NULL, 1, 0);
+										p = hashtbl_lookup(symtb, scope, $1.name, 0);
+										p->func->ret_type = $1.type;			
+										p->func->header_declared = 0;
+										p->func->node = $3;
+									  }
+									};
+func_header_start : typename ID {
+		  		if (!strcmp($1, "int") && !strcmp($1, "float") && !strcmp($1,"char") && !strcmp($1,"void")) 
+					printf("semantic error: wrong func return type\n");
+				else {	
+					$$.type = $1;
+					$$.name = $2;
+				}	
+				} | LIST ID;
+parameter_types : parameter_types COMMA typename pass_list_dims{
+	       par_list_t *n = malloc(sizeof(par_list_t));
+	       n->type = $3;
+	       n->next = $1;
+               $$ = n; }
+				
+		| typename pass_list_dims {
+		par_list_t *n = malloc(sizeof(par_list_t));
+		n->type = $1;
+		n->next = NULL;
+		$$= n;
+		};
 pass_list_dims : listspec dims | REFER;
 nopar_func_header : func_header_start LPAREN RPAREN;
 union_declaration : UNION ID {hashtbl_insert(symtb, $2, "union", 0, NULL, 1, 0); struct hashnode_s *p = hashtbl_lookup(symtb, scope, $2, 0); currtb = p->un->untb;} union_body SEMI {currtb = symtb;};
@@ -355,12 +380,48 @@ full_func_declaration : full_par_func_header {scope++;} LBRACE decl_statements R
 		| nopar_class_func_header {scope++;} LBRACE decl_statements RBRACE{hashtbl_get(symtb, scope);scope--;}
 		| nopar_func_header {scope++;} LBRACE decl_statements RBRACE{hashtbl_get(symtb, scope);scope--;};
 full_par_func_header : class_func_header_start LPAREN parameter_list RPAREN
-		| func_header_start LPAREN parameter_list RPAREN;
+		| func_header_start LPAREN parameter_list RPAREN { struct hashnode_s *p = hashtbl_lookup(symtb, scope, $1.name, 0);
+								   if (p != NULL && p->istype == 0) printf("semantic error: x2 func declaration\n");
+							           else if (p != NULL && p->istype == 1){ //we have header b4 body
+									//check if params are correct 
+									par_list_t *n = $3;
+									while(p->func->node && n) {
+										if(!strcmp(p->func->node->type,n->type)) {
+											printf("semantic error: parameters dont match\n");
+											break;
+										}else{
+											p->func->node = p->func->node->next;
+											n = n->next;
+										}	
+									}
+									if (p->func->node != NULL || n != NULL)
+										printf("semantic error:parameters dont match\n");
+									else
+									p->func->header_declared = 1;
+								   }
+								   else if (p == NULL) {
+									hashtbl_insert(symtb, $1.name, "func", scope, NULL, 0, 0);
+									p = hashtbl_lookup(symtb, scope, $1.name, 0);
+									p->func->ret_type = $1.type;
+									p->func->header_declared = 1;
+									p->func->node = $3;
+								  }
+								 };
 class_func_header_start : typename func_class ID
 		| LIST func_class ID;
 func_class : ID METH;
-parameter_list : parameter_list COMMA typename pass_variabledef
-		| typename pass_variabledef;
+parameter_list : parameter_list COMMA typename pass_variabledef {
+		 par_list_t *n = malloc(sizeof(par_list_t));
+	         n->type = $3;
+	         n->next = $1;
+                 $$ = n; 
+		}
+		| typename pass_variabledef {
+		par_list_t *n = malloc(sizeof(par_list_t));
+		n->type = $1;
+		n->next = NULL;
+		$$= n;
+		};	
 pass_variabledef : variabledef | REFER ID;
 nopar_class_func_header : class_func_header_start LPAREN RPAREN;
 decl_statements : declarations statements
@@ -393,9 +454,30 @@ in_item : variable;
 out_list: out_list OUT out_item | out_item
 out_item: general_expression | STRING;
 comp_statement: LBRACE{scope++;} decl_statements {hashtbl_get(symtb, scope);scope--;}RBRACE;
-main_function: main_header {scope++;} LBRACE decl_statements RBRACE {hashtbl_get(symtb, scope);scope--;};
-main_header: INT MAIN LPAREN RPAREN;
+main_function: main_header {header_decl_check(symtb); scope++;} LBRACE decl_statements RBRACE {hashtbl_get(symtb, scope);scope--;};
+main_header: INT MAIN LPAREN RPAREN; 
 %%
+
+void header_decl_check(HASHTBL *hashtbl) {
+
+	hash_size i;
+	struct hashnode_s *node, *old;
+
+	for (i = 0; i < hashtbl->size; ++i) {
+		node = hashtbl->nodes[i];
+		while(node) {
+			if(!strcmp(node->data, "func") && (node->func->header_declared == 0)) {
+				printf("header of func %s without declaration\n", node->key);
+				exit(1);
+				//handle semantic error
+			}else
+				node = node->next;
+				
+		}
+
+	}
+	
+}
 
 void var_decl(id_list_t *var_list) {
 	id_list_t *curr = var_list, *prv = var_list;
