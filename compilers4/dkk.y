@@ -262,6 +262,10 @@ variable : variable LBRACK general_expression RBRACK {
 					$$.ival = 3;
 				else $$.ival = 4;
 			}
+			if(p->arr ==  NULL){
+				p->arr = malloc(sizeof(array_t));
+				p->arr->dims = 0;
+			}
 		}
 	| THIS; // class
 general_expression : general_expression COMMA general_expression
@@ -275,7 +279,7 @@ constant : CCONST {$$.type = T_CHAR; $$.val.cval = yylval.cval;}
 	| FCONST {$$.type = T_FLOAT; $$.val.fval = yylval.fval;};
 listexpression : LBRACK expression_list RBRACK;
 init_values : init_values COMMA init_value | init_value;
-class_declaration : CLASS ID {hashtbl_insert(symtb, $2, "class", scope, NULL, 1, 0); struct hashnode_s *p = hashtbl_lookup(symtb, scope, $2, 0); currtb = p->cla->classtb; printf("FINALLY\n");} class_body SEMI {struct hashnode_s *p = hashtbl_lookup(symtb, scope, $2, 0); p->cla->superclass = $4;currtb = symtb; currvis = 0;};
+class_declaration : CLASS ID {hashtbl_insert(symtb, $2, "class", scope, NULL, 1, 0); struct hashnode_s *p = hashtbl_lookup(symtb, scope, $2, 0); currtb = p->cla->classtb;} class_body SEMI {struct hashnode_s *p = hashtbl_lookup(symtb, scope, $2, 0); p->cla->superclass = $4;currtb = symtb; currvis = 0;};
 class_body : parent LBRACE members_methods RBRACE {$$ = $1;};
 parent : COLON ID {$$ = $2;}|  {$$ = NULL;};
 members_methods : members_methods access member_or_method | access member_or_method;
@@ -388,7 +392,8 @@ void var_decl(id_list_t *var_list) {
 	id_list_t *curr = var_list, *prv = var_list;
 	while (curr) {
 		printf("str = %s\n", curr->id->id);
-		if(hashtbl_lookup(symtb, scope, curr->id->id, 0) != NULL)
+		struct hashnode_s *p = hashtbl_lookup(symtb, scope, curr->id->id, 0);
+		if(p != NULL && p->scope == scope)
 			printf("semantic error, x2 declare\n");
 		else hashtbl_insert(currtb, curr->id->id, curr->id->data, scope, curr->id->arr, 0, currvis);
 		curr = curr->next;
@@ -414,6 +419,7 @@ void yyerror (char const *s) {
 
 int main(){
 	symtb = hashtbl_create(10, NULL);
+	currtb = symtb;
 	return yyparse();
 	hashtbl_destroy(symtb);
 }
