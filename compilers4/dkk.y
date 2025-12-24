@@ -198,7 +198,16 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 	| INCDEC variable {var_to_expr(&$$, $2.ival);$$.rec_count = $2.rec_count; $$.n = $2.n;}
 	| variable INCDEC {var_to_expr(&$$, $1.ival);$$.rec_count = $1.rec_count; $$.n = $1.n;}
 	| variable {var_to_expr(&$$, $1.ival); $$.rec_count = $1.rec_count; $$.n = $1.n; printf("%d\n", $$.type); printf("%d\n", $$.val.ival);}
-	| variable LPAREN expression_list RPAREN {var_to_expr(&$$, $1.ival);}
+	| variable LPAREN expression_list RPAREN {var_to_expr(&$$, $1.ival); if($1->funct != NULL){
+							par_list_t *p = $1;
+							exprlist *p2 = $3;
+							while(p->funct->node != NULL || p2 != NULL ){
+								if(p->funct->node->type != p2->id->data)
+									printf("semantic error\n");
+								p=p->funct->next; p2=p2->next;
+							}
+							// if(p == NULL && p2!= NULL tote semantic, if p != NULL && p2 == NULL tote semantic)
+						}}
 	| LENGTH LPAREN general_expression RPAREN
 	| NEW LPAREN general_expression RPAREN
 	| constant {$$.type = $1.type; $$.val = $1.val; $$.n = malloc(sizeof(expr_t)); $$.n->arr = malloc(sizeof(array_t)); $$.n->arr->dims = 0; $$.rec_count = 0;}
@@ -417,7 +426,14 @@ full_par_func_header : class_func_header_start LPAREN parameter_list RPAREN
 									p = hashtbl_lookup(symtb, scope, $1.name, 0);
 									p->func->ret_type = $1.type;
 									p->func->header_declared = 1;
-									//p->func->node = $3;
+									id_list_t *n = $3;
+									par_list_t *p2, *prev = NULL;
+									while(n){
+										p2 = malloc(sizeof(par_list_t));
+										p2->type = n->id->data;
+										p2->next = prev;
+										prev = p2;
+									}
 									scope++;
 									var_decl($3);
 									scope--;

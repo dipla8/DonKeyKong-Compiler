@@ -162,7 +162,6 @@ int hashtbl_remove(HASHTBL *hashtbl, const char *key,int scope, array_t *arr)
 {
 	struct hashnode_s *node, *prevnode=NULL;
 	hash_size hash=hashtbl->hashfunc(key)%hashtbl->size;
-
 	node=hashtbl->nodes[hash];
 	while(node) {
 		if((!strcmp(node->key, key)) && (node->scope == scope)) {
@@ -210,7 +209,6 @@ struct hashnode_s *hashtbl_lookup(HASHTBL *hashtbl, int scope, const char* key, 
 	struct hashnode_s *node;
 	hash_size hash=hashtbl->hashfunc(key)%hashtbl->size;
 	node=hashtbl->nodes[hash];
-	
 	while(node) {
 		if(!strcmp(node->key, key) && (node->scope <= scope) && node->visibility <= perm) {
 			return node;
