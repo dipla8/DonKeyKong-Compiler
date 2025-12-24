@@ -388,7 +388,7 @@ full_par_func_header : class_func_header_start LPAREN parameter_list RPAREN
 									//check if params are correct 
 									par_list_t *n = $3;
 									while(p->func->node && n) {
-										if(!strcmp(p->func->node->type,n->type)) {
+										if(strcmp(p->func->node->type,n->type)) {
 											printf("semantic error: parameters dont match\n");
 											break;
 										}else{
@@ -397,7 +397,7 @@ full_par_func_header : class_func_header_start LPAREN parameter_list RPAREN
 										}	
 									}
 									if (p->func->node != NULL || n != NULL)
-										printf("semantic error:parameters dont match\n");
+										printf("semantic error:parameters dont match2\n");
 									else
 									p->func->header_declared = 1;
 								   }
