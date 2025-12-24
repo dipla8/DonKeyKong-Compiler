@@ -79,7 +79,10 @@ typedef struct {
 	int rec_count;
 	struct hashnode_s *n;
 } expr_t;
-
+typedef struct explist{
+	expr_t *exp;
+	struct explist *next;
+}expr_list_t;
 typedef struct {
 	int rec_count;
 	int ival;

@@ -45,12 +45,14 @@ LBRACE RBRACE METH INP OUT
 	var_t myvar;
 	header_t myhdr;
 	par_list_t *par_list;
+	expr_list_t *myexprlist;
 }
 %token <oper> ADDOP
 %token <ival> ICONST
 %token <str> ID STRING
 %type <ival> init_value init_values initializer
-%type <myexpr> expression general_expression constant assignment
+%type <myexpr> expression constant assignment
+%type <myexprlist> expression_list general_expression
 %type <id> variabledef init_variabledef pass_variabledef
 %type <idlist> variabledefs init_variabledefs parameter_list
 %type <par_list> parameter_types
@@ -198,15 +200,19 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 	| INCDEC variable {var_to_expr(&$$, $2.ival);$$.rec_count = $2.rec_count; $$.n = $2.n;}
 	| variable INCDEC {var_to_expr(&$$, $1.ival);$$.rec_count = $1.rec_count; $$.n = $1.n;}
 	| variable {var_to_expr(&$$, $1.ival); $$.rec_count = $1.rec_count; $$.n = $1.n; printf("%d\n", $$.type); printf("%d\n", $$.val.ival);}
-	| variable LPAREN expression_list RPAREN {var_to_expr(&$$, $1.ival); if($1->funct != NULL){
-							par_list_t *p = $1;
-							exprlist *p2 = $3;
-							while(p->funct->node != NULL || p2 != NULL ){
-								if(p->funct->node->type != p2->id->data)
-									printf("semantic error\n");
-								p=p->funct->next; p2=p2->next;
+	| variable LPAREN expression_list RPAREN {var_to_expr(&$$, $1.ival); if($1.n->func != NULL){
+							struct hashnode_s *n = hashtbl_lookup(currtb, scope, $1.n->key, 0);
+							par_list_t *p1 = n->func->node;
+							expr_list_t *p2 = $3;
+							printf("p1==NULL:%d, p2==NULL:%d\n", p1==NULL, p2==NULL);
+							while(p1!=NULL && p2!=NULL){
+								printf("pt: %s, p2t: %s\n", p1->type, p2->exp->n->data);
+								if(strcmp(p1->type,p2->exp->n->data))
+									printf("semantic error param type\n");
+								p1=p1->next; p2=p2->next;
 							}
-							// if(p == NULL && p2!= NULL tote semantic, if p != NULL && p2 == NULL tote semantic)
+							if(p1 != NULL || p2!=NULL)
+								printf("semantic error param size\n");
 						}}
 	| LENGTH LPAREN general_expression RPAREN
 	| NEW LPAREN general_expression RPAREN
@@ -215,18 +221,18 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 	| LPAREN standard_type RPAREN
 	| listexpression;
 variable : variable LBRACK general_expression RBRACK {
-							if($3.type != T_INT ||($3.n->arr != NULL) && ($3.rec_count != $3.n->arr->dims))
+							if($3->exp->type != T_INT ||($3->exp->n->arr != NULL) && ($3->exp->rec_count != $3->exp->n->arr->dims))
 								printf("semantic error here\n");
 							else{
 							     if($1.rec_count > $1.n->arr->dims)
 								printf("semantic error there\n");
-						 	     else if($3.val.ival <0 || $3.val.ival >= $1.n->arr->dim_size[$1.rec_count]){
+						 	     else if($3->exp->val.ival <0 || $3->exp->val.ival >= $1.n->arr->dim_size[$1.rec_count]){
 							    //if($3.val.ival <0 || $3.val.ival >= curr_node->arr->dim_size[curr_node->arr->dims - rec_count]){
 								printf("dims:%d, rec_count: %d\n", $1.n->arr->dims, $1.rec_count);
-								printf("curr_dimsize %d, ival %d\n", $1.n->arr->dim_size[$1.rec_count], $3.val.ival);
+								printf("curr_dimsize %d, ival %d\n", $1.n->arr->dim_size[$1.rec_count], $3->exp->val.ival);
 								printf("semantic error2\n");}
 							     	else {
-									if($3.rec_count != $3.n->arr->dims)
+									if($3->exp->rec_count != $3->exp->n->arr->dims)
 										printf("semantic error\n");
 									$$.rec_count = $1.rec_count+1;
 									$$.n = $1.n;
@@ -287,12 +293,12 @@ variable : variable LBRACK general_expression RBRACK {
 			}
 		}
 	| THIS; // class
-general_expression : general_expression COMMA general_expression
-	| assignment{$$.type = $1.type; $$.val = $1.val; $$.rec_count = $1.rec_count; $$.n = $1.n;};
+general_expression : general_expression COMMA general_expression {expr_list_t *k = malloc(sizeof(expr_list_t)); k->exp = $3->exp; k->next =$1; $$ = k;}
+	| assignment{expr_list_t *k = malloc(sizeof(expr_list_t)); k->exp = malloc(sizeof(expr_t)); k->exp->type = $1.type; k->exp->val = $1.val; k->exp->rec_count = $1.rec_count; k->exp->n = $1.n; k->next =  NULL; $$ = k;};
 assignment : variable ASSIGN assignment {if($1.rec_count != $1.n->arr->dims) printf("semantic error\n");}
    	   | variable ASSIGN STRING 
 	| expression {$$.type = $1.type; $$.val = $1.val;$$.rec_count = $1.rec_count; $$.n = $1.n;};
-expression_list : general_expression | ;
+expression_list : general_expression {$$ = $1;} | ;
 constant : CCONST {$$.type = T_CHAR; $$.val.cval = yylval.cval;}
 	| ICONST {$$.type = T_INT; $$.val.ival = yylval.ival;}
 	| FCONST {$$.type = T_FLOAT; $$.val.fval = yylval.fval;};
@@ -404,16 +410,17 @@ full_par_func_header : class_func_header_start LPAREN parameter_list RPAREN
 							           else if (p != NULL && p->istype == 1){ //we have header b4 body
 									//check if params are correct 
 									id_list_t *n = $3;
-									while(p->func->node && n) {
-										if(strcmp(p->func->node->type,n->id->data)) {
+									par_list_t *s = p->func->node;
+									while(s && n) {
+										if(strcmp(s->type,n->id->data)) {
 											printf("semantic error: parameters dont match\n");
 											break;
 										}else{
-											p->func->node = p->func->node->next;
+											s = s->next;
 											n = n->next;
 										}	
 									}
-									if (p->func->node != NULL || n != NULL)
+									if (s != NULL || n != NULL)
 										printf("semantic error:parameters dont match2\n");
 									else
 									p->func->header_declared = 1;
@@ -428,12 +435,22 @@ full_par_func_header : class_func_header_start LPAREN parameter_list RPAREN
 									p->func->header_declared = 1;
 									id_list_t *n = $3;
 									par_list_t *p2, *prev = NULL;
-									while(n){
-										p2 = malloc(sizeof(par_list_t));
-										p2->type = n->id->data;
-										p2->next = prev;
-										prev = p2;
+									par_list_t *head = NULL;
+									par_list_t *tail = NULL;
+									while (n) {
+									    p2 = malloc(sizeof(par_list_t));
+									    p2->type = n->id->data;
+									    p2->next = NULL;
+									    if (!head) {
+									        head = p2;
+										tail = p2;
+									    } else {
+									        tail->next = p2;
+									        tail = p2;
+									    }
+									    n = n->next;
 									}
+									p->func->node = head;
 									scope++;
 									var_decl($3);
 									scope--;
