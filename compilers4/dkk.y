@@ -14,6 +14,7 @@ int dim_count = 0;
 HASHTBL *symtb;
 HASHTBL *currtb;
 int currvis;
+id_list_t *deflist = NULL; //necessary for int a,b=a;
 %}
 
 %token TYPEDEF CHAR INT FLOAT CONST UNION CLASS PRIVATE PROTECTED PUBLIC
@@ -129,7 +130,7 @@ dims : dims LBRACK ICONST RBRACK {
 const_declaration : CONST typename constdefs SEMI;
 constdefs : constdefs COMMA constdef | constdef;
 constdef : ID dims ASSIGN init_value;
-expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == T_INT)) {
+expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == T_INT) || $1.type == 5 || $3.type == 5) {
    					  	printf("correct type\n");
    					  	$$.type = $1.type;
 					  }
@@ -137,7 +138,7 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 					  	printf("semantics error\n");
 					  }
 					}
-	| expression ANDOP expression { if (($1.type == T_INT) && ($3.type == T_INT)) {
+	| expression ANDOP expression { if (($1.type == T_INT) && ($3.type == T_INT) || $1.type == 5 || $3.type == 5) {
    					  	printf("correct type\n");
    					  	$$.type = $1.type;
 					  }
@@ -145,13 +146,13 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 					  	printf("semantics error\n");
 					  }
 				      }
-	| expression EQUOP expression {if((($1.type == T_INT || $1.type == T_FLOAT) && (($3.type == T_INT) ||($3.type == T_FLOAT))) || ($1.type == T_CHAR && $3.type == T_CHAR)){
+	| expression EQUOP expression {if((($1.type == T_INT || $1.type == T_FLOAT) && (($3.type == T_INT) ||($3.type == T_FLOAT))) || ($1.type == T_CHAR && $3.type == T_CHAR) || $1.type == 5 || $3.type == 5){
 						printf("correct type equop\n");
 						$$.type = T_INT;
 					}
 					else printf("semantic error\n");
 				      }
-	| expression RELOP expression {if((($1.type == T_INT || $1.type == T_FLOAT) && (($3.type == T_INT) ||($3.type == T_FLOAT))) || ($1.type == T_CHAR && $3.type == T_CHAR)){
+	| expression RELOP expression {if((($1.type == T_INT || $1.type == T_FLOAT) && (($3.type == T_INT) ||($3.type == T_FLOAT))) || ($1.type == T_CHAR && $3.type == T_CHAR) || $1.type == 5 || $3.type == 5){
 						printf("correct type relop\n");
 						$$.type = T_INT;
 					}
@@ -162,6 +163,8 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 					else if (($1.type == T_INT && $3.type == T_FLOAT) || ($1.type == T_FLOAT && $3.type == T_INT) || ($1.type == T_FLOAT && $3.type == T_FLOAT)) {
 						$$.type = T_FLOAT;
 					}
+					else if( $1.type == 5 || $3.type == 5)
+						$$.type = 5;
 					// list check
 					else printf("semantic error\n");	
 				      }
@@ -170,10 +173,12 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 					else if ((($1.type == T_INT && $3.type == T_FLOAT) || ($1.type == T_FLOAT && $3.type == T_INT) || ($1.type == T_FLOAT && $3.type == T_FLOAT))/* && ($2.type != T_MULOP_MOD)*/) {
 						$$.type = T_FLOAT;
 					}
+					else if($1.type == 5 || $3.type == 5)
+						$$.type = 5;
 					//list
 					else printf("semantic error\n");	
 				      }
-	| NOTOP expression { if ($2.type != T_INT) { 
+	| NOTOP expression { if ($2.type != T_INT || $2.type == 5) { 
 	                     	printf("not correct type. semantics error\n");
 	                     }
 	                     else {
@@ -182,7 +187,7 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 	                     }
 	                   }
 				
-	| ADDOP expression { if (($2.type != T_INT) || ($2.type != T_FLOAT)) {
+	| ADDOP expression { if (($2.type != T_INT) || ($2.type != T_FLOAT) || $2.type == 5) {
 		             	printf("semantic error\n");
 			     }
 			     else {
@@ -271,9 +276,35 @@ variable : variable LBRACK general_expression RBRACK {
 			};// class and unions
 	| LISTFUNC LPAREN general_expression RPAREN {} // list
 	| decltype ID { 
-			struct hashnode_s *p;
-			if((p = hashtbl_lookup(symtb, scope, yylval.str, 0)) == NULL)
+			struct hashnode_s *p= hashtbl_lookup(symtb, scope, yylval.str, 0);
+			if(p== NULL && deflist == NULL)
 				printf("semantics error\n");
+			else if(p == NULL && deflist != NULL){
+				id_list_t *curr = deflist, *prv = deflist;
+				$$.n = NULL;
+				while (curr) {
+					printf("str = %s\n", curr->id->id);
+					if(strcmp(curr->id->id, yylval.str))
+						curr=curr->next;
+					else{
+						$$.rec_count = 0;
+						$$.n = malloc(sizeof(struct hashnode_s));
+						$$.n->data = curr->id->data;
+						if(curr->id->arr == NULL){
+							$$.n->arr = malloc(sizeof(array_t));
+							$$.n->arr->dims = 0;
+						}
+						$$.n->arr = curr->id->arr;
+						$$.n->key = curr->id->id;
+						$$.ival = 5; // so i cant know the type unless i make a global
+								// what i do know is that the type will be the same as the
+								// one before it, so with 5 i tell it theres no way theres a semantic error
+						curr = NULL;
+					}
+				}
+				if($$.n == NULL)
+					printf("semantic error\n");
+			}
 			else{
 				$$.rec_count = 0;
 			 	$$.n = p;
@@ -287,7 +318,7 @@ variable : variable LBRACK general_expression RBRACK {
 					$$.ival = 3;
 				else $$.ival = 4;
 			}
-			if(p->arr ==  NULL){
+			if(p!=NULL && p->arr ==  NULL){
 				p->arr = malloc(sizeof(array_t));
 				p->arr->dims = 0;
 			}
@@ -312,7 +343,7 @@ member_or_method : member
 	| method;
 member : var_declaration
 	| anonymous_union;
-var_declaration : typename variabledefs SEMI {$2->id->data = $1; var_decl($2);};
+var_declaration : typename variabledefs SEMI {var_decl($2, $1);};
 variabledefs : variabledefs COMMA variabledef {
           id_list_t* n = malloc(sizeof(id_list_t));
           n->id = $3;
@@ -379,18 +410,20 @@ parameter_types : parameter_types COMMA typename pass_list_dims{
 pass_list_dims : listspec dims | REFER;
 nopar_func_header : func_header_start LPAREN RPAREN {$$=$1;};
 union_declaration : UNION ID {hashtbl_insert(symtb, $2, "union", 0, NULL, 1, 0); struct hashnode_s *p = hashtbl_lookup(symtb, scope, $2, 0); currtb = p->un->untb;} union_body SEMI {currtb = symtb;};
-global_var_declaration : typename init_variabledefs SEMI {$2->id->data = $1; var_decl($2);};
+global_var_declaration : typename init_variabledefs SEMI {var_decl($2, $1); deflist = NULL;};
 init_variabledefs : init_variabledefs COMMA init_variabledef  {
          		 id_list_t* n = malloc(sizeof(id_list_t));
          		 n->id = $3;
          		 n->next = $1;
          		 $$ = n;
+			deflist = n;
       			}
 				| init_variabledef{
 					id_list_t* n = malloc(sizeof(id_list_t));
 					n->id = $1;
 					n->next = NULL;
 					$$ = n;
+					deflist = n;
 				};
 
 init_variabledef : variabledef initializer {int p=1; for(int i=0;($1!=NULL && $1->arr!=NULL && i<$1->arr->dims); i++) p = p * $1->arr->dim_size[i]; if((($1!=NULL)&&($1->data!=NULL)&&(!strcmp($1->data,"char"))&&($1->arr!=NULL)&&p==$2)||p<$2) printf("semantic error\n");};
@@ -425,7 +458,7 @@ full_par_func_header : class_func_header_start LPAREN parameter_list RPAREN
 									else
 									p->func->header_declared = 1;
 									scope++;
-									var_decl($3);
+									var_decl($3, $3->id->data);
 									scope--;
 								   }
 								   else if (p == NULL) {
@@ -452,7 +485,7 @@ full_par_func_header : class_func_header_start LPAREN parameter_list RPAREN
 									}
 									p->func->node = head;
 									scope++;
-									var_decl($3);
+									var_decl($3, $3->id->data);
 									scope--;
 								  }
 								 };
@@ -479,8 +512,8 @@ nopar_class_func_header : class_func_header_start LPAREN RPAREN;
 decl_statements : declarations statements
 		| declarations
 		| statements | ;
-declarations : declarations decltype typename variabledefs SEMI {  $4->id->data = $3; var_decl($4);}
-		| decltype typename variabledefs SEMI{  $3->id->data = $2; var_decl($3);};
+declarations : declarations decltype typename variabledefs SEMI { var_decl($4, $3);}
+		| decltype typename variabledefs SEMI{ var_decl($3, $2);};
 decltype : STATIC | ;
 statements : statements statement | statement;
 statement : expression_statement
@@ -531,14 +564,14 @@ void header_decl_check(HASHTBL *hashtbl) {
 	
 }
 
-void var_decl(id_list_t *var_list) {
+void var_decl(id_list_t *var_list, char *data) {
 	id_list_t *curr = var_list, *prv = var_list;
 	while (curr) {
 		printf("str = %s\n", curr->id->id);
 		struct hashnode_s *p = hashtbl_lookup(currtb, scope, curr->id->id, 0);
 		if(p != NULL && p->scope == scope)
 			printf("semantic error, x2 declare\n");
-		else hashtbl_insert(currtb, curr->id->id, curr->id->data, scope, curr->id->arr, 0, currvis);
+		else {hashtbl_insert(currtb, curr->id->id, data, scope, curr->id->arr, 0, currvis);printf("data = %s, key = %s\n", data, curr->id->id);}
 		curr = curr->next;
 		free(prv);
 		prv = curr;
@@ -552,6 +585,7 @@ void var_to_expr(expr_t *expr, int type){
 		case 2:{ expr->type = T_FLOAT; break;}
 		case 3:{ expr->type = T_VOID; break;}
 		case 4:{ expr->type = T_ID; break;}
+		case 5:{ expr->type = T_ALL; break;}
 		default: {printf("semantic error func\n");}
 	}
 	expr->val.ival = 0;

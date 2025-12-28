@@ -53,7 +53,8 @@ typedef enum {
 	T_INT,
 	T_FLOAT,
 	T_VOID,
-	T_ID
+	T_ID,
+	T_ALL
 } type_t;
 
 typedef union {
@@ -74,7 +75,7 @@ typedef struct IdList {
 } id_list_t;
 
 typedef struct {
-	type_t type ;
+	type_t type;
 	union_const val;
 	int rec_count;
 	struct hashnode_s *n;
@@ -100,7 +101,7 @@ int hashtbl_insert(HASHTBL *hashtbl, const char *key, char *data, int scope, arr
 int hashtbl_remove(HASHTBL *hashtbl, const char *key,int scope, array_t *arr);
 void *hashtbl_get(HASHTBL *hashtbl, int scope);
 struct hashnode_s *hashtbl_lookup(HASHTBL *hashtbl, int scope, const char *key, int perm);
-void var_decl(id_list_t *var_list);
+void var_decl(id_list_t *var_list, char* data);
 void var_to_expr(expr_t *expr, int type);
 void header_decl_check(HASHTBL *hashtbl);
 #endif
