@@ -83,23 +83,23 @@ MAIN        { return MAIN;}
 
 {CCONST}    {printf("CCONST detected %s\n", yytext); yylval.cval = yytext[0]; return CCONST;}
 
-"||"     {printf("OROP detected\n"); return OROP;}
-"&&"     {printf("ANDOP detected\n"); return ANDOP;}
-"=="     {printf("EQUOP detected\n"); yylval.oper = 0; return EQUOP;}
-"!="     {printf("EQUOP detected\n"); yylval.oper = 1; return EQUOP;}
-">"      {printf("RELOP detected\n"); yylval.oper = 0; return RELOP;}
-">="     {printf("RELOP detected\n"); yylval.oper = 1; return RELOP;}
-"<"      {printf("RELOP detected\n"); yylval.oper = 2; return RELOP;}
-"<="     {printf("RELOP detected\n"); yylval.oper = 3; return RELOP;}
-"++"     {printf("INCDEC detected\n"); yylval.oper = 0; return INCDEC;}
-"--"     {printf("INCDEC detected\n"); yylval.oper = 1; return INCDEC;}
-\+       {printf("ADDOP detected\n"); yylval.oper = 0; return ADDOP;}
-\-       {printf("ADDOP detected\n"); yylval.oper = 1; return ADDOP;}
-\*       {printf("MULOP detected\n"); yylval.oper = 0; return MULOP;}
-\/       {printf("MULOP detected\n"); yylval.oper = 1; return MULOP;}
-\%       {printf("MULOP detected\n"); yylval.oper = 2; return MULOP;}
-\!       {printf("NOTOP detected\n"); return NOTOP;}
-"SIZEOF" {printf("SIZEOP detected\n"); return SIZEOP;}
+"||"     {return OROP;}
+"&&"     {return ANDOP;}
+"=="     {yylval.oper = 0; return EQUOP;}
+"!="     {yylval.oper = 1; return EQUOP;}
+">"      {yylval.oper = 0; return RELOP;}
+">="     {yylval.oper = 1; return RELOP;}
+"<"      {yylval.oper = 2; return RELOP;}
+"<="     {yylval.oper = 3; return RELOP;}
+"++"     {yylval.oper = 0; return INCDEC;}
+"--"     {yylval.oper = 1; return INCDEC;}
+\+       {yylval.oper = 0; return ADDOP;}
+\-       {yylval.oper = 1; return ADDOP;}
+\*       {yylval.oper = 0; return MULOP;}
+\/       {yylval.oper = 1; return MULOP;}
+\%       {yylval.oper = 2; return MULOP;}
+\!       {return NOTOP;}
+"SIZEOF" {return SIZEOP;}
 
 {LISTFUNC} {printf("LISTFUNC detected %s\n", yytext); yylval.str = strdup(yytext);}
 
@@ -177,18 +177,18 @@ MAIN        { return MAIN;}
             return T_EOF;
 }
 
-"(" {printf("LPAREN\n"); return LPAREN;}
-")" {printf("RPAREN\n"); return RPAREN;}
-";" {printf("SEMI\n"); return SEMI;}
-"." {printf("DOT\n"); return DOT;}
-"," {printf("COMMA\n"); return COMMA;}
-"=" {printf("ASSIGN\n"); return ASSIGN;}
-":" {printf("COLON\n"); return COLON;}
-"[" {printf("LBRACK\n"); return LBRACK;}
-"]" {printf("RBRACK\n"); return RBRACK;}
+"(" {return LPAREN;}
+")" {return RPAREN;}
+";" {return SEMI;}
+"." {return DOT;}
+"," {return COMMA;}
+"=" {return ASSIGN;}
+":" {return COLON;}
+"[" {return LBRACK;}
+"]" {return RBRACK;}
 "&" {printf("REFER\n"); return REFER;}
-"{" {printf("LBRACE\n"); return LBRACE;}
-"}" {printf("RBRACE\n"); return RBRACE;}
+"{" {return LBRACE;}
+"}" {return RBRACE;}
 "::" {printf("METH\n"); return METH;}
 ">>" {printf("INP\n"); return INP;}
 "<<" {printf("OUT\n"); return OUT;}

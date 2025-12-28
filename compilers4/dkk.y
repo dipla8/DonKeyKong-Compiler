@@ -59,8 +59,8 @@ LBRACE RBRACE METH INP OUT
 %type <par_list> parameter_types
 %type <arr> dims
 %type <myvar> variable
-%type <str> standard_type typename class_body parent
-%type <myhdr> func_header_start nopar_func_header 
+%type <str> standard_type typename class_body parent func_class
+%type <myhdr> func_header_start nopar_func_header class_func_header_start
 %%
 program: global_declarations main_function {exit(0);};
 global_declarations: global_declarations global_declaration | ;
@@ -72,7 +72,7 @@ global_declaration : typedef_declaration
 	| func_declaration;
 typedef_declaration : TYPEDEF typename listspec ID {dim_count = 0;} dims SEMI {hashtbl_insert(symtb, $4, $2 , scope, $6, 1, currvis);} // scope is always 0
 typename : standard_type {$$ = $1;}
-		| ID {struct hashnode_s *p = hashtbl_lookup(symtb, scope, $1, 0); if(p == NULL || p->istype == 0) printf("semantic error\n");else{$$ = p->key;}};
+		| ID {struct hashnode_s *p = hashtbl_lookup(symtb, scope, $1, currvis); if(p == NULL || p->istype == 0) printf("semantic error\n");else{$$ = p->key;}};
 standard_type : CHAR {$$="char";}
 		| INT {$$="int";}
 		| FLOAT {$$="float";}
@@ -205,8 +205,12 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 	| INCDEC variable {var_to_expr(&$$, $2.ival);$$.rec_count = $2.rec_count; $$.n = $2.n;}
 	| variable INCDEC {var_to_expr(&$$, $1.ival);$$.rec_count = $1.rec_count; $$.n = $1.n;}
 	| variable {var_to_expr(&$$, $1.ival); $$.rec_count = $1.rec_count; $$.n = $1.n; printf("%d\n", $$.type); printf("%d\n", $$.val.ival);}
-	| variable LPAREN expression_list RPAREN {var_to_expr(&$$, $1.ival); if($1.n->func != NULL){
-							struct hashnode_s *n = hashtbl_lookup(currtb, scope, $1.n->key, 0);
+	| variable LPAREN expression_list RPAREN {var_to_expr(&$$, $1.ival);
+							 if($1.n->func != NULL){
+							struct hashnode_s *n = hashtbl_lookup(currtb, scope, $1.n->key, currvis);
+							if(n == NULL)
+								printf("semantic error\n");
+							if(n->func != NULL){
 							par_list_t *p1 = n->func->node;
 							expr_list_t *p2 = $3;
 							printf("p1==NULL:%d, p2==NULL:%d\n", p1==NULL, p2==NULL);
@@ -217,8 +221,10 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 								p1=p1->next; p2=p2->next;
 							}
 							if(p1 != NULL || p2!=NULL)
-								printf("semantic error param size\n");
-						}}
+								printf("semantic error param size\n");}
+							else if($3 != NULL)
+								printf("semantic error\n");
+						}else if(strcmp($1.n->data, "func"))printf("semantic error %s\n", $1.n->data);}
 	| LENGTH LPAREN general_expression RPAREN
 	| NEW LPAREN general_expression RPAREN
 	| constant {$$.type = $1.type; $$.val = $1.val; $$.n = malloc(sizeof(expr_t)); $$.n->arr = malloc(sizeof(array_t)); $$.n->arr->dims = 0; $$.rec_count = 0;}
@@ -244,22 +250,25 @@ variable : variable LBRACK general_expression RBRACK {
 								}
 							}
 					} // matrix
-	| variable DOT ID { if($1.n == NULL) printf("semantic error 1\n");
-			    struct hashnode_s *p;
+	| variable DOT ID {if($1.n == NULL) printf("semantic error 1\n");
+			    struct hashnode_s *p=$1.n;
                             if ($1.n->un != NULL) {
 				
-				if (hashtbl_lookup(p->un->untb, scope, $3, 0) == NULL) 
+				if (hashtbl_lookup(p->un->untb, scope, $3, currvis) == NULL) 
 					printf("semantic error 3\n");
 			    }
 			    else if ($1.n->cla != NULL) {
-				int perm = 2; // INITIALLY, PERMISSION = 2
-				while(p!=NULL && p->cla!=NULL && hashtbl_lookup(p->cla->classtb, scope, $3, perm) == NULL){
+				int currvis = 2; // INITIALLY, PERMISSION = 2
+				while(p!=NULL && p->cla!=NULL && hashtbl_lookup(p->cla->classtb, scope, $3, currvis) == NULL){
 					if(p!=NULL && p->cla!=NULL && p->cla->superclass == NULL)
 						printf("semantic error 3\n");
 					printf("psaxnw father %s\n", p->cla->superclass);
-					perm = 1;
-					p = hashtbl_lookup(symtb, scope, p->cla->superclass, 0);
+					currvis = 1;
+					p = hashtbl_lookup(currtb, scope, p->cla->superclass, 0);
 				}
+				p = hashtbl_lookup($1.n->cla->classtb, scope, $3, currvis);
+			   	currtb = $1.n->cla->classtb;
+				$$.n = p;
 			    }
 			    else 
 				printf("semantic error 2\n");
@@ -271,12 +280,12 @@ variable : variable LBRACK general_expression RBRACK {
 			if(p->arr ==  NULL){
 				p->arr = malloc(sizeof(array_t));
 				p->arr->dims = 0;
+				$$.n = p;
 			}
-			$$.n = p;
 			};// class and unions
 	| LISTFUNC LPAREN general_expression RPAREN {} // list
 	| decltype ID { 
-			struct hashnode_s *p= hashtbl_lookup(symtb, scope, yylval.str, 0);
+			struct hashnode_s *p= hashtbl_lookup(currtb, scope, yylval.str, currvis);
 			if(p== NULL && deflist == NULL)
 				printf("semantics error\n");
 			else if(p == NULL && deflist != NULL){
@@ -329,12 +338,12 @@ general_expression : general_expression COMMA general_expression {expr_list_t *k
 assignment : variable ASSIGN assignment {if($1.rec_count != $1.n->arr->dims) printf("semantic error\n");}
    	   | variable ASSIGN STRING 
 	| expression {$$.type = $1.type; $$.val = $1.val;$$.rec_count = $1.rec_count; $$.n = $1.n;};
-expression_list : general_expression {$$ = $1;} | ;
+expression_list : general_expression {$$ = $1;} | {$$ = NULL;};
 constant : CCONST {$$.type = T_CHAR; $$.val.cval = yylval.cval;}
 	| ICONST {$$.type = T_INT; $$.val.ival = yylval.ival;}
 	| FCONST {$$.type = T_FLOAT; $$.val.fval = yylval.fval;};
 listexpression : LBRACK expression_list RBRACK;
-class_declaration : CLASS ID {hashtbl_insert(symtb, $2, "class", scope, NULL, 1, 0); struct hashnode_s *p = hashtbl_lookup(symtb, scope, $2, 0); currtb = p->cla->classtb;}class_body SEMI {struct hashnode_s *p = hashtbl_lookup(symtb, scope, $2, 0); p->cla->superclass = $4;currtb = symtb; currvis = 0;};
+class_declaration : CLASS ID {hashtbl_insert(symtb, $2, "class", scope, NULL, 1, 0); struct hashnode_s *p = hashtbl_lookup(symtb, scope, $2, currvis); currtb = p->cla->classtb; scope++;}class_body SEMI {scope--;struct hashnode_s *p = hashtbl_lookup(symtb, scope, $2, currvis); p->cla->superclass = $4;currtb = symtb; currvis = 0;};
 class_body : parent LBRACE members_methods RBRACE {$$ = $1;};
 parent : COLON ID {$$ = $2;}|  {$$ = NULL;};
 members_methods : members_methods access member_or_method | access member_or_method;
@@ -367,33 +376,33 @@ union_body : LBRACE fields RBRACE;
 fields : fields field | field;
 field : var_declaration;
 method : short_func_declaration;
-short_func_declaration : short_par_func_header SEMI | nopar_func_header SEMI{struct hashnode_s *p = hashtbl_lookup(symtb, scope, $1.name, 0);
+short_func_declaration : short_par_func_header SEMI | nopar_func_header SEMI{struct hashnode_s *p = hashtbl_lookup(currtb, scope, $1.name, currvis);
 									  if (p != NULL) printf("semantic error: x2 header declaration\n");
-									  else { 
-									  	hashtbl_insert(symtb, $1.name, "func", scope, NULL, 1, 0);
-										p = hashtbl_lookup(symtb, scope, $1.name, 0);
+									  else {
+									  	hashtbl_insert(currtb, $1.name, "func", scope, NULL, 1, currvis);
+										p = hashtbl_lookup(currtb, scope, $1.name, currvis);
 										p->func->ret_type = $1.type;			
 										p->func->header_declared = 0;
 										p->func->node = NULL;
 									  }
 									};
-short_par_func_header : func_header_start LPAREN parameter_types RPAREN {struct hashnode_s *p = hashtbl_lookup(symtb, scope, $1.name, 0);
+short_par_func_header : func_header_start LPAREN parameter_types RPAREN {struct hashnode_s *p = hashtbl_lookup(currtb, scope, $1.name, currvis);
 									  if (p != NULL) printf("semantic error: x2 header declaration\n");
 									  else { 
-									  	hashtbl_insert(symtb, $1.name, "func", scope, NULL, 1, 0);
-										p = hashtbl_lookup(symtb, scope, $1.name, 0);
+										hashtbl_insert(currtb, $1.name, "func", scope, NULL, 1, currvis);
+										p = hashtbl_lookup(currtb, scope, $1.name, currvis);
 										p->func->ret_type = $1.type;			
 										p->func->header_declared = 0;
 										p->func->node = $3;
 									  }
 									};
 func_header_start : typename ID {
-		  		if (!strcmp($1, "int") && !strcmp($1, "float") && !strcmp($1,"char") && !strcmp($1,"void")) 
-					printf("semantic error: wrong func return type\n");
-				else {	
+		  		//if (!strcmp($1, "int") && !strcmp($1, "float") && !strcmp($1,"char") && !strcmp($1,"void")) 
+				//	printf("semantic error: wrong func return type\n");
+				//else {	
 					$$.type = $1;
 					$$.name = $2;
-				}	
+				//}	
 				} | LIST ID;
 parameter_types : parameter_types COMMA typename pass_list_dims{
 	       par_list_t *n = malloc(sizeof(par_list_t));
@@ -434,11 +443,36 @@ init_value : expression {$$ = 1;}
 init_values : init_values COMMA init_value {$$ = $1 + $3;}
                 | init_value {$$= $1;}; 
 func_declaration : short_func_declaration | full_func_declaration {printf("sevo\n");};
-full_func_declaration : full_par_func_header {scope++;} LBRACE decl_statements RBRACE {hashtbl_get(symtb, scope); scope--;}
-		| nopar_class_func_header {scope++;} LBRACE decl_statements RBRACE{hashtbl_get(symtb, scope);scope--;}
-		| nopar_func_header {scope++;} LBRACE decl_statements RBRACE{hashtbl_get(symtb, scope);scope--;};
-full_par_func_header : class_func_header_start LPAREN parameter_list RPAREN
-		| func_header_start LPAREN parameter_list RPAREN { struct hashnode_s *p = hashtbl_lookup(symtb, scope, $1.name, 0);
+full_func_declaration : full_par_func_header {scope++;} LBRACE decl_statements RBRACE {hashtbl_get(currtb, scope); scope--;}
+		| nopar_class_func_header {scope++;} LBRACE decl_statements RBRACE{hashtbl_get(currtb, scope);scope--;}
+		| nopar_func_header {scope++;} LBRACE decl_statements RBRACE{hashtbl_get(currtb, scope);scope--;};
+full_par_func_header : class_func_header_start LPAREN parameter_list RPAREN { struct hashnode_s *p = hashtbl_lookup(currtb, scope, $1.name, currvis);
+								   if(strcmp(p->data, "func")) printf("semantic error\n");
+								   if (p != NULL && p->istype == 0) printf("semantic error: x2 func declaration\n");
+							           else if (p != NULL && p->istype == 1){ //we have header b4 body
+									//check if params are correct 
+									id_list_t *n = $3;
+									par_list_t *s = p->func->node;
+									while(s && n) {
+										if(strcmp(s->type,n->id->data)) {
+											printf("semantic error: parameters dont match\n");
+											break;
+										}else{
+											s = s->next;
+											n = n->next;
+										}	
+									}
+									if (s != NULL || n != NULL)
+										printf("semantic error:parameters dont match2\n");
+									else
+									p->func->header_declared = 1;
+									scope++;
+									var_decl($3, $3->id->data);
+									scope--;
+								   }
+								   else printf("semantic error\n");}
+		| func_header_start LPAREN parameter_list RPAREN { struct hashnode_s *p = hashtbl_lookup(currtb, scope, $1.name, 0);
+								   if(strcmp(p->data, "func")) printf("semantic error\n");
 								   if (p != NULL && p->istype == 0) printf("semantic error: x2 func declaration\n");
 							           else if (p != NULL && p->istype == 1){ //we have header b4 body
 									//check if params are correct 
@@ -462,8 +496,8 @@ full_par_func_header : class_func_header_start LPAREN parameter_list RPAREN
 									scope--;
 								   }
 								   else if (p == NULL) {
-									hashtbl_insert(symtb, $1.name, "func", scope, NULL, 0, 0);
-									p = hashtbl_lookup(symtb, scope, $1.name, 0);
+									hashtbl_insert(currtb, $1.name, "func", scope, NULL, 0, currvis);
+									p = hashtbl_lookup(currtb, scope, $1.name, 0);
 									p->func->ret_type = $1.type;
 									p->func->header_declared = 1;
 									id_list_t *n = $3;
@@ -489,9 +523,9 @@ full_par_func_header : class_func_header_start LPAREN parameter_list RPAREN
 									scope--;
 								  }
 								 };
-class_func_header_start : typename func_class ID
+class_func_header_start : typename func_class ID {struct hashnode_s *p =hashtbl_lookup(currtb, scope, $2, currvis); if(p==NULL) printf("semantic error1\n"); if((p = hashtbl_lookup(p->cla->classtb, 55555, $3, currvis)) == NULL) printf("semantic error2\n"); if(strcmp(p->func->ret_type, $1)) printf("semantic error4\n"); if(strcmp(p->data, "func")) printf("semantic error3\n"); $$.type = $1;$$.name = $3;}
 		| LIST func_class ID;
-func_class : ID METH;
+func_class : ID METH {$$ = $1;};
 parameter_list : parameter_list COMMA typename pass_variabledef {
 		id_list_t* n = malloc(sizeof(id_list_t));
                 n->id = $4;
@@ -525,8 +559,8 @@ statement : expression_statement
 	| comp_statement
 	| CONTINUE SEMI
 	| BREAK SEMI
-	| SEMI;
-expression_statement : general_expression SEMI;
+	| SEMI {currtb = symtb;};
+expression_statement : general_expression SEMI {currtb = symtb;};
 if_statement : IF LPAREN general_expression RPAREN statement %prec LOWER_THAN_ELSE |
 		IF LPAREN general_expression RPAREN statement ELSE statement;
 while_statement : WHILE LPAREN general_expression RPAREN statement;
@@ -538,8 +572,8 @@ in_list : in_list INP in_item | in_item;
 in_item : variable;
 out_list: out_list OUT out_item | out_item
 out_item: general_expression | STRING;
-comp_statement: LBRACE{scope++;} decl_statements {hashtbl_get(symtb, scope);scope--;}RBRACE;
-main_function: main_header {header_decl_check(symtb); scope++;} LBRACE decl_statements RBRACE {hashtbl_get(symtb, scope);scope--;};
+comp_statement: LBRACE{scope++;} decl_statements {hashtbl_get(currtb, scope);scope--;}RBRACE;
+main_function: main_header {header_decl_check(currtb); scope++;} LBRACE decl_statements RBRACE {scope--; hashtbl_get(currtb, scope);};
 main_header: INT MAIN LPAREN RPAREN; 
 %%
 
