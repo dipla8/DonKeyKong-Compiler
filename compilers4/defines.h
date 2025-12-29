@@ -26,6 +26,7 @@ typedef struct{
 
 typedef struct MyList {
 	char* type;
+	array_t *arr;
 	struct MyList *next;
 } par_list_t;
 

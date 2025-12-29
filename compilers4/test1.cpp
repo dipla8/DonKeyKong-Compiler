@@ -1,13 +1,16 @@
-void ok(){}
-class A {
-	public:
-		int hello;
-		void k();
+class A{
+	int deez;
+	void nuts(int);
 };
-void A::k(){}
+void A::nuts(int deez){
+	this.deez = deez;
+}
+void k(int k1){
+}
 int main(){
-	A e;
-	e.hello = 2;
-	e.k();
+	//int kostis;
+	//A hello;
+	//hello.nuts(1);
+	//k(1);
 	return 0;
 }
