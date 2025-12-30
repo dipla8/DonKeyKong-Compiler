@@ -6,6 +6,8 @@
 typedef size_t hash_size;
 
 typedef struct {
+	int islist;
+	int *listsize;
 	int dims;
 	int dim_size[MAX_DIMENSIONS];
 } array_t;
@@ -54,8 +56,7 @@ typedef enum {
 	T_INT,
 	T_FLOAT,
 	T_VOID,
-	T_ID,
-	T_ALL
+	T_ID
 } type_t;
 
 typedef union {
