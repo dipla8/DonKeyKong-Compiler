@@ -3,6 +3,7 @@
 #define MAX_DIMENSIONS 15
 
 #include <stdlib.h>
+
 typedef size_t hash_size;
 
 typedef struct {
@@ -78,19 +79,15 @@ typedef struct IdList {
 
 typedef struct {
 	type_t type;
-	union_const val;
+	union_const val;	// address
 	int rec_count;
 	struct hashnode_s *n;
 } expr_t;
 typedef struct explist{
 	expr_t *exp;
+	int listsize;
 	struct explist *next;
 }expr_list_t;
-typedef struct {
-	int rec_count;
-	int ival;
-	struct hashnode_s *n;
-}var_t;
 
 typedef struct {
 	char* type;
@@ -104,6 +101,6 @@ int hashtbl_remove(HASHTBL *hashtbl, const char *key,int scope, array_t *arr);
 void *hashtbl_get(HASHTBL *hashtbl, int scope);
 struct hashnode_s *hashtbl_lookup(HASHTBL *hashtbl, int scope, const char *key, int perm);
 void var_decl(id_list_t *var_list, char* data);
-void var_to_expr(expr_t *expr, int type);
+void var_to_expr(expr_t *expr, char* name);
 void header_decl_check(HASHTBL *hashtbl);
 #endif

@@ -101,7 +101,7 @@ MAIN        { return MAIN;}
 \!       {return NOTOP;}
 "SIZEOF" {return SIZEOP;}
 
-{LISTFUNC} {printf("LISTFUNC detected %s\n", yytext); yylval.str = strdup(yytext);}
+{LISTFUNC} {printf("LISTFUNC detected %s\n", yytext); yylval.str = strdup(yytext); return LISTFUNC;}
 
 \"              {BEGIN(STR); stp = st;}
 <STR>[^\\\"\n]* {
