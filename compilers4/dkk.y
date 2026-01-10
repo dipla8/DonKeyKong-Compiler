@@ -8,6 +8,13 @@
 
 extern int yylineno;
 int yylex(void);
+void dfs_post_order(const asd_t *node);
+static void print_tree_rec(const asd_t *node, const char *prefix, int is_left);
+asd_t *create_node(const char *s, asd_t *lleaf, asd_t *rleaf);
+int max_depth(const asd_t *node);
+void print_at_depth(const asd_t *node, int current, int target);
+void deepest_first_print(const asd_t *root);
+void print_tree(const asd_t *root);
 void yyerror(const char *s);
 int scope = 0;
 int dim_count = 0;
@@ -17,6 +24,8 @@ int currvis;
 id_list_t *deflist = NULL;	// necessary for int a,b=a;
 struct hashnode_s *currclass = NULL;
 int stride= 1;
+int reg = 0;
+FILE *fd = NULL;
 %}
 
 %token TYPEDEF CHAR INT FLOAT CONST UNION CLASS PRIVATE PROTECTED PUBLIC
@@ -159,6 +168,7 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 						$$.type = T_FLOAT;
 					else yyerror("Wrong expression type.");
 					$$.val.ival = $1.val.ival + $3.val.ival;
+					$$.node = create_node("+", $1.node, $3.node);
 				      }
 	| expression MULOP expression {if($1.type == T_INT && $3.type == T_INT)
 						$$.type = T_INT;
@@ -323,14 +333,16 @@ variable : variable LBRACK general_expression RBRACK {
 				p->arr = malloc(sizeof(array_t));
 				p->arr->dims = 0;
 			}
+		$$.node = create_node($2, NULL, NULL);
 		}
 	| THIS {$$.rec_count = 0; $$.val.ival = 0; $$.n = currclass; $$.type = T_ID;}; // class
 general_expression : general_expression COMMA general_expression {expr_list_t *k = malloc(sizeof(expr_list_t)); k->exp = $3->exp; k->next =$1; k->listsize = $1->listsize+$3->listsize; $$ = k;}
-	| assignment{expr_list_t *k = malloc(sizeof(expr_list_t)); k->exp = malloc(sizeof(expr_t));k->exp->type = $1.type; k->exp->val = $1.val; k->exp->rec_count = $1.rec_count; k->exp->n = $1.n; k->next =  NULL;  k->listsize = 1;$$ = k;};
+	| assignment{expr_list_t *k = malloc(sizeof(expr_list_t)); k->exp = malloc(sizeof(expr_t));k->exp->type = $1.type; k->exp->val = $1.val; k->exp->rec_count = $1.rec_count; k->exp->n = $1.n; k->next =  NULL;  k->listsize = 1;$$ = k; $$->exp->node = $1.node;};
 assignment : variable ASSIGN assignment {if($1.rec_count != $1.n->arr->dims) yyerror("Incorrect dimension indexing."); if($1.type != $3.type) yyerror("Type mismatch.");
 					if($1.n->arr->islist)
 						$1.n->arr->listsize[$1.val.ival] = $3.val.ival; 
-					}
+					$$.node = create_node("=", $1.node, $3.node);
+					}	
    	   | variable ASSIGN STRING 
 	| expression {$$ = $1;};
 expression_list : general_expression {$$ = $1;} | {$$ = NULL;};
@@ -565,7 +577,7 @@ statement : expression_statement
 	| CONTINUE SEMI
 	| BREAK SEMI
 	| SEMI {currtb = symtb;};
-expression_statement : general_expression SEMI {currtb = symtb;};
+expression_statement : general_expression SEMI {currtb = symtb; print_tree($1->exp->node); reg = 0; deepest_first_print($1->exp->node);};
 if_statement : IF LPAREN general_expression RPAREN statement %prec LOWER_THAN_ELSE |
 		IF LPAREN general_expression RPAREN statement ELSE statement;
 while_statement : WHILE LPAREN general_expression RPAREN statement;
@@ -609,7 +621,78 @@ void yyerror(const char *s){
 	printf("error: %s in line: %d\n", s, yylineno);
 	exit(255);
 }
+static void print_tree_rec(const asd_t *node, const char *prefix, int is_left){
+    if (!node) return;
+    /* Print current node */
+    printf("%s", prefix);
+    printf(is_left ? "├── " : "└── ");
+    printf("%s\n", node->name ? node->name : "(null)");
+    /* Prepare prefix for children */
+    char new_prefix[256];
+    snprintf(new_prefix, sizeof(new_prefix), "%s%s",
+             prefix,
+             is_left ? "│   " : "    ");
+    /* Recurse: left first, then right */
+    if (node->lchild || node->rchild) {
+        if (node->lchild)
+            print_tree_rec(node->lchild, new_prefix, 1);
+        if (node->rchild)
+            print_tree_rec(node->rchild, new_prefix, 0);
+    }
+}
 
+void print_tree(const asd_t *root){	
+    if (!root) {
+        printf("(empty tree)\n");
+        return;
+    }
+    /* Root is printed without branches */
+    printf("%s\n", root->name ? root->name : "(null)");
+
+    if (root->lchild)
+        print_tree_rec(root->lchild, "", 1);
+    if (root->rchild)
+        print_tree_rec(root->rchild, "", 0);
+}
+
+asd_t *create_node(const char *s, asd_t *lleaf, asd_t *rleaf) {
+	asd_t *node = malloc(sizeof(asd_t));
+
+	node->name = malloc(strlen(s) + 1);
+	strcpy(node->name, s);
+
+	node->lchild = lleaf;
+	node->rchild = rleaf;
+
+	return node;
+}
+int max_depth(const asd_t *node){
+    if (!node)
+        return -1;   // so root ends up at depth 0
+
+    int left = max_depth(node->lchild);
+    int right = max_depth(node->rchild);
+    return (left > right ? left : right) + 1;
+}
+void print_at_depth(const asd_t *node, int current, int target){
+    if (!node)
+        return;
+    if (current == target) {
+	printf("%s\n", node->name);
+        return;
+    }
+
+    print_at_depth(node->lchild, current + 1, target);
+    print_at_depth(node->rchild, current + 1, target);
+}
+void deepest_first_print(const asd_t *root){
+    int depth = max_depth(root);
+    if (fd==NULL)
+	fd = fopen("ir.dkk", "w");
+    for (int d = depth; d >= 0; --d) {
+        print_at_depth(root, 0, d);
+    }
+}
 int main(){
 	symtb = hashtbl_create(10, NULL);
 	currtb = symtb;

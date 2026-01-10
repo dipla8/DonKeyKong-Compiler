@@ -6,6 +6,12 @@
 
 typedef size_t hash_size;
 
+typedef struct asd_st{
+	char* name;
+	struct asd_st *lchild;
+	struct asd_st *rchild;
+} asd_t;
+
 typedef struct {
 	int islist;
 	int *listsize;
@@ -82,6 +88,7 @@ typedef struct {
 	union_const val;	// address
 	int rec_count;
 	struct hashnode_s *n;
+	asd_t *node;
 } expr_t;
 typedef struct explist{
 	expr_t *exp;
