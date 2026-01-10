@@ -11,9 +11,7 @@ int yylex(void);
 void dfs_post_order(const asd_t *node);
 static void print_tree_rec(const asd_t *node, const char *prefix, int is_left);
 asd_t *create_node(const char *s, asd_t *lleaf, asd_t *rleaf);
-int max_depth(const asd_t *node);
-void print_at_depth(const asd_t *node, int current, int target);
-void deepest_first_print(const asd_t *root);
+char *print_ir(const asd_t *root);
 void print_tree(const asd_t *root);
 void yyerror(const char *s);
 int scope = 0;
@@ -25,15 +23,15 @@ id_list_t *deflist = NULL;	// necessary for int a,b=a;
 struct hashnode_s *currclass = NULL;
 int stride= 1;
 int reg = 0;
+int label_count = 0;
+char *lastname = NULL;
 FILE *fd = NULL;
 %}
 
 %token TYPEDEF CHAR INT FLOAT CONST UNION CLASS PRIVATE PROTECTED PUBLIC
 STATIC VOID LIST CONTINUE BREAK THIS IF ELSE WHILE FOR RETURN LENGTH
-NEW CIN COUT MAIN FCONST CCONST OROP ANDOP EQUOP RELOP MULOP NOTOP INCDEC
-SIZEOP LPAREN RPAREN SEMI DOT COMMA ASSIGN COLON LBRACK RBRACK REFER
-LBRACE RBRACE METH INP OUT
-
+NEW CIN COUT MAIN FCONST CCONST OROP ANDOP NOTOP SIZEOP LPAREN RPAREN
+SEMI DOT COMMA ASSIGN COLON LBRACK RBRACK REFER LBRACE RBRACE METH INP OUT
 
 %left COMMA
 %left ASSIGN
@@ -65,7 +63,7 @@ LBRACE RBRACE METH INP OUT
 	expr_list_t *myexprlist;
 	struct hashnode_s *node;
 }
-%token <oper> ADDOP
+%token <oper> ADDOP EQUOP RELOP MULOP INCDEC
 %token <ival> ICONST
 %token <str> ID STRING LISTFUNC
 %type <ival> init_value init_values initializer
@@ -146,21 +144,30 @@ dims : dims LBRACK ICONST RBRACK {
 const_declaration : CONST typename constdefs SEMI;
 constdefs : constdefs COMMA constdef | constdef;
 constdef : ID dims ASSIGN init_value;
+
 expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == T_INT))
    					  	$$.type = $1.type;
 					  else	yyerror("Wrong expression type.");
+				      	$$.node = create_node("||", $1.node, $3.node);
 					}
 	| expression ANDOP expression { if (($1.type == T_INT) && ($3.type == T_INT))
    					  	$$.type = $1.type;
 					  else yyerror("Wrong expression type.");
+				      	$$.node = create_node("&&", $1.node, $3.node);
 				      }
 	| expression EQUOP expression {if((($1.type == T_INT || $1.type == T_FLOAT) && (($3.type == T_INT) ||($3.type == T_FLOAT))) || ($1.type == T_CHAR && $3.type == T_CHAR))
 						$$.type = T_INT;
 					else yyerror("Wrong expression type.");
+				      	if($2 == 0)$$.node = create_node("==", $1.node, $3.node);
+				      	else $$.node = create_node("!=", $1.node, $3.node);
 				      }
 	| expression RELOP expression {if((($1.type == T_INT || $1.type == T_FLOAT) && (($3.type == T_INT) ||($3.type == T_FLOAT))) || ($1.type == T_CHAR && $3.type == T_CHAR))
 						$$.type = T_INT;
 					else yyerror("Wrong expression type.");
+				      	if($2 == 0)$$.node = create_node(">", $1.node, $3.node);
+				      	else if($2 == 1)$$.node = create_node(">=", $1.node, $3.node);
+				      	else if($2 == 2)$$.node = create_node("<", $1.node, $3.node);
+				      	else $$.node = create_node("<=", $1.node, $3.node);
 				      }
 	| expression ADDOP expression {if($1.type == T_INT && $3.type == T_INT)
 						$$.type = T_INT;
@@ -168,16 +175,21 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 						$$.type = T_FLOAT;
 					else yyerror("Wrong expression type.");
 					$$.val.ival = $1.val.ival + $3.val.ival;
-					$$.node = create_node("+", $1.node, $3.node);
+					if($2 == 0) $$.node = create_node("+", $1.node, $3.node);
+					else $$.node = create_node("-", $1.node, $3.node);
 				      }
 	| expression MULOP expression {if($1.type == T_INT && $3.type == T_INT)
 						$$.type = T_INT;
 					else if ((($1.type == T_INT && $3.type == T_FLOAT) || ($1.type == T_FLOAT && $3.type == T_INT) || ($1.type == T_FLOAT && $3.type == T_FLOAT)))
 						$$.type = T_FLOAT;
 					else yyerror("Wrong expression type.");
+				      	if($2 == 0)$$.node = create_node("*", $1.node, $3.node);
+				      	else if($2 == 1)$$.node = create_node("/", $1.node, $3.node);
+				      	else $$.node = create_node("%", $1.node, $3.node);
 				      }
 	| NOTOP expression { if ($2.type != T_INT) yyerror("Wrong expression type.");
 	                     else $$.type = $2.type;
+			     $$.node = create_node("!", $2.node, NULL);
 	                   }
 	| ADDOP expression { if (($2.type != T_INT) || ($2.type != T_FLOAT)) yyerror("Wrong expression type.");
 			     	$$.type = $2.type;
@@ -187,10 +199,14 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 						$$.val.ival = ($2.val.ival * (-1));	
 					if($2.type == T_INT)
 						$$.val.fval = ($2.val.fval * (-1));
+				if($1 == 0) $$.node = create_node("+", $2.node, NULL);
+				else $$.node = create_node("-", $2.node, NULL);
 			   }
-	| SIZEOP expression {$$.type = T_INT; $$.val.ival = 0;}
-	| INCDEC variable {$$ = $2;}
-	| variable INCDEC {$$ = $1;}
+	| SIZEOP expression {$$.type = T_INT; $$.val.ival = 0; $$.node = create_node("sizeof", $2.node, NULL);}
+	| INCDEC variable {$$ = $2; if($1 == 0) $$.node = create_node("++", $2.node, NULL);
+				      	else $$.node = create_node("--", $2.node, NULL);}
+	| variable INCDEC {$$ = $1; if($2 == 0)$$.node = create_node("++", $1.node, NULL);
+				      	else $$.node = create_node("--", $1.node, NULL);}
 	| variable {$$ = $1;}
 	| variable LPAREN expression_list RPAREN {$$ = $1;
 							 if($1.n->func != NULL){
@@ -213,7 +229,7 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 						}else if(strcmp($1.n->data, "func"))yyerror("Variable is not a function.");}
 	| LENGTH LPAREN general_expression RPAREN
 	| NEW LPAREN general_expression RPAREN
-	| constant {$$.type = $1.type; $$.val = $1.val; $$.n = malloc(sizeof(expr_t)); $$.n->arr = malloc(sizeof(array_t)); $$.n->arr->dims = 0; $$.rec_count = 0;if($1.type == T_CHAR) $$.n->data = strdup("char"); else if($1.type == T_INT) $$.n->data = strdup("int"); else if($1.type == T_FLOAT) $$.n->data = strdup("float");}
+	| constant {$$.type = $1.type; $$.val = $1.val; $$.n = malloc(sizeof(expr_t)); $$.n->arr = malloc(sizeof(array_t)); $$.n->arr->dims = 0; $$.rec_count = 0;if($1.type == T_CHAR) $$.n->data = strdup("char"); else if($1.type == T_INT) $$.n->data = strdup("int"); else if($1.type == T_FLOAT) $$.n->data = strdup("float"); $$.node = create_node("const", NULL, NULL);}
 	| LPAREN general_expression RPAREN
 	| LPAREN standard_type RPAREN
 	| listexpression {$$.type = $1->exp->type; $$.val.ival = $1->listsize; $$.rec_count = 0; $$.n = NULL;};
@@ -291,7 +307,7 @@ variable : variable LBRACK general_expression RBRACK {
 							$$.val.ival = 1;
 							$$.type = $3->exp->type;
 						} // list
-	| decltype ID {struct hashnode_s *p= hashtbl_lookup(currtb, scope, yylval.str, currvis);
+	| decltype ID {struct hashnode_s *p= hashtbl_lookup(currtb, scope, $2, currvis);
 			if(p== NULL && deflist == NULL)
 				yyerror("Variable doesn't exist.");
 			else if(p == NULL && deflist != NULL){
@@ -337,7 +353,7 @@ variable : variable LBRACK general_expression RBRACK {
 		}
 	| THIS {$$.rec_count = 0; $$.val.ival = 0; $$.n = currclass; $$.type = T_ID;}; // class
 general_expression : general_expression COMMA general_expression {expr_list_t *k = malloc(sizeof(expr_list_t)); k->exp = $3->exp; k->next =$1; k->listsize = $1->listsize+$3->listsize; $$ = k;}
-	| assignment{expr_list_t *k = malloc(sizeof(expr_list_t)); k->exp = malloc(sizeof(expr_t));k->exp->type = $1.type; k->exp->val = $1.val; k->exp->rec_count = $1.rec_count; k->exp->n = $1.n; k->next =  NULL;  k->listsize = 1;$$ = k; $$->exp->node = $1.node;};
+	| assignment{expr_list_t *k = malloc(sizeof(expr_list_t)); k->exp = malloc(sizeof(expr_t));k->exp->type = $1.type; k->exp->val = $1.val; k->exp->rec_count = $1.rec_count; k->exp->n = $1.n; k->next =  NULL;  k->listsize = 1;$$ = k; $$->exp->node = $1.node; print_tree($1.node); reg = 0; print_ir($1.node);};
 assignment : variable ASSIGN assignment {if($1.rec_count != $1.n->arr->dims) yyerror("Incorrect dimension indexing."); if($1.type != $3.type) yyerror("Type mismatch.");
 					if($1.n->arr->islist)
 						$1.n->arr->listsize[$1.val.ival] = $3.val.ival; 
@@ -577,10 +593,11 @@ statement : expression_statement
 	| CONTINUE SEMI
 	| BREAK SEMI
 	| SEMI {currtb = symtb;};
-expression_statement : general_expression SEMI {currtb = symtb; print_tree($1->exp->node); reg = 0; deepest_first_print($1->exp->node);};
-if_statement : IF LPAREN general_expression RPAREN statement %prec LOWER_THAN_ELSE |
-		IF LPAREN general_expression RPAREN statement ELSE statement;
-while_statement : WHILE LPAREN general_expression RPAREN statement;
+expression_statement : general_expression SEMI {currtb = symtb;};
+if_statement : IF LPAREN general_expression if_mid RPAREN statement %prec LOWER_THAN_ELSE{fprintf(fd, "L%d:\n", label_count);} 
+		|IF LPAREN general_expression if_mid RPAREN statement ELSE statement;
+if_mid: {fprintf(fd, "bne,\t%s,\t0,\tL%d\n", lastname, ++label_count);};
+while_statement : WHILE LPAREN {fprintf(fd, "L%d:\n", ++label_count); scope++;} general_expression {fprintf(fd, "bne,\t%s,\t0,\tL%d\n", lastname, ++label_count);} RPAREN statement {scope--; fprintf(fd, "goto,\t,\t,\tL%d\n", label_count-1); fprintf(fd, "L%d:\n", label_count);};
 for_statement : FOR LPAREN optexpr SEMI optexpr SEMI optexpr RPAREN statement;
 optexpr : general_expression | ;
 return_statement : RETURN optexpr SEMI;
@@ -666,36 +683,51 @@ asd_t *create_node(const char *s, asd_t *lleaf, asd_t *rleaf) {
 
 	return node;
 }
-int max_depth(const asd_t *node){
-    if (!node)
-        return -1;   // so root ends up at depth 0
+char *print_ir(const asd_t *root) {
+    if (!root) return NULL;
 
-    int left = max_depth(node->lchild);
-    int right = max_depth(node->rchild);
-    return (left > right ? left : right) + 1;
-}
-void print_at_depth(const asd_t *node, int current, int target){
-    if (!node)
-        return;
-    if (current == target) {
-	printf("%s\n", node->name);
-        return;
+    if (root->lchild == NULL && root->rchild == NULL) {
+        char *name = malloc(sizeof(char) * (strlen(root->name) + 1));
+        strcpy(name, root->name);
+	lastname = name;
+        return name;
     }
 
-    print_at_depth(node->lchild, current + 1, target);
-    print_at_depth(node->rchild, current + 1, target);
-}
-void deepest_first_print(const asd_t *root){
-    int depth = max_depth(root);
-    if (fd==NULL)
-	fd = fopen("ir.dkk", "w");
-    for (int d = depth; d >= 0; --d) {
-        print_at_depth(root, 0, d);
+    char *lname = print_ir(root->lchild);
+    char *rname = print_ir(root->rchild);
+
+    if (!lname && rname) {
+        fprintf(fd, "%s,\t,\t%s,%s\n", root->name, rname, rname);
+	lastname = lname;
+	return NULL;
     }
+    else if(lname && !rname) {
+        fprintf(fd, "%s,\t%s,\t,\t%s\n", root->name, lname, lname);
+	lastname = lname;
+	return NULL;
+    }
+    else if (!strcmp(root->name, "=")) {
+        printf("%s %s %s\n", lname, root->name, rname);
+        fprintf(fd, "=,\t%s,\t-,\t%s\n", rname, lname);
+	lastname = lname;
+        return NULL;
+    }
+    else {
+        printf("%s %s %s => t%d\n", lname, root->name, rname, reg);
+    }
+
+    reg++;
+    char *name = malloc(sizeof(char) * 10);
+    sprintf(name, "t%d", reg - 1);
+    fprintf(fd, "%s,\t%s,\t%s,\t%s\n", root->name, lname, rname, name);
+    lastname = name;
+    return name;
 }
 int main(){
+	fd = fopen("ir.dkk", "w");
 	symtb = hashtbl_create(10, NULL);
 	currtb = symtb;
 	return yyparse();
 	hashtbl_destroy(symtb);
+	fclose(fd);
 }
