@@ -12,6 +12,12 @@ typedef struct asd_st{
 	struct asd_st *rchild;
 } asd_t;
 
+typedef struct postinc{
+	char* name;
+	int sign;
+	struct postinc *next;
+} post_t;
+
 typedef struct {
 	int islist;
 	int *listsize;

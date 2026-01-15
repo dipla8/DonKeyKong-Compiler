@@ -1,0 +1,35 @@
+=,	1,	,	stride
+*,	stride,	const,	t1
++,	index,	t1,	index
+*,	stride,	5,	stride
+*,	stride,	const,	t2
++,	index,	t2,	index
+*,	stride,	4,	stride
+*,	index,	4,	index
+
+l,	a,	index,	t3
+
+=,	1,	,	stride
+*,	stride,	const,	t4
++,	index,	t4,	index
+*,	stride,	5,	stride
+*,	stride,	const,	t5
++,	index,	t5,	index
+*,	stride,	4,	stride
+*,	index,	4,	index
+
+l,	a,	index,	t6
+
+=,	1,	,	stride
+*,	stride,	const,	t7
++,	index,	t7,	index
+*,	stride,	5,	stride
+*,	stride,	const,	t8
++,	index,	t8,	index
+*,	stride,	4,	stride
+*,	index,	4,	index
+
+l,	a,	index,	t9
+
++,	t6,	t9,	t10
+=,	t10,	-,	t3

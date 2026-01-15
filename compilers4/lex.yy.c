@@ -1,5 +1,5 @@
 
-#line 3 "lex.yy.c"
+#line 2 "lex.yy.c"
 
 #define  YY_INT_ALIGNED short int
 
@@ -877,9 +877,9 @@ char *yytext;
     float fconvert();
     char st[MAX_STRING_SIZE];
     char *stp;    
-#line 881 "lex.yy.c"
+#line 880 "lex.yy.c"
 
-#line 883 "lex.yy.c"
+#line 882 "lex.yy.c"
 
 #define INITIAL 0
 #define STR 1
@@ -1101,7 +1101,7 @@ YY_DECL
 #line 40 "dkk_lexer.l"
 
 
-#line 1105 "lex.yy.c"
+#line 1104 "lex.yy.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -1357,92 +1357,92 @@ YY_RULE_SETUP
 case 37:
 YY_RULE_SETUP
 #line 86 "dkk_lexer.l"
-{printf("OROP detected\n"); return OROP;}
+{return OROP;}
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
 #line 87 "dkk_lexer.l"
-{printf("ANDOP detected\n"); return ANDOP;}
+{return ANDOP;}
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
 #line 88 "dkk_lexer.l"
-{printf("EQUOP detected\n"); yylval.oper = 0; return EQUOP;}
+{yylval.oper = 0; return EQUOP;}
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
 #line 89 "dkk_lexer.l"
-{printf("EQUOP detected\n"); yylval.oper = 1; return EQUOP;}
+{yylval.oper = 1; return EQUOP;}
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
 #line 90 "dkk_lexer.l"
-{printf("RELOP detected\n"); yylval.oper = 0; return RELOP;}
+{yylval.oper = 0; return RELOP;}
 	YY_BREAK
 case 42:
 YY_RULE_SETUP
 #line 91 "dkk_lexer.l"
-{printf("RELOP detected\n"); yylval.oper = 1; return RELOP;}
+{yylval.oper = 1; return RELOP;}
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
 #line 92 "dkk_lexer.l"
-{printf("RELOP detected\n"); yylval.oper = 2; return RELOP;}
+{yylval.oper = 2; return RELOP;}
 	YY_BREAK
 case 44:
 YY_RULE_SETUP
 #line 93 "dkk_lexer.l"
-{printf("RELOP detected\n"); yylval.oper = 3; return RELOP;}
+{yylval.oper = 3; return RELOP;}
 	YY_BREAK
 case 45:
 YY_RULE_SETUP
 #line 94 "dkk_lexer.l"
-{printf("INCDEC detected\n"); yylval.oper = 0; return INCDEC;}
+{yylval.oper = 0; return INCDEC;}
 	YY_BREAK
 case 46:
 YY_RULE_SETUP
 #line 95 "dkk_lexer.l"
-{printf("INCDEC detected\n"); yylval.oper = 1; return INCDEC;}
+{yylval.oper = 1; return INCDEC;}
 	YY_BREAK
 case 47:
 YY_RULE_SETUP
 #line 96 "dkk_lexer.l"
-{printf("ADDOP detected\n"); yylval.oper = 0; return ADDOP;}
+{yylval.oper = 0; return ADDOP;}
 	YY_BREAK
 case 48:
 YY_RULE_SETUP
 #line 97 "dkk_lexer.l"
-{printf("ADDOP detected\n"); yylval.oper = 1; return ADDOP;}
+{yylval.oper = 1; return ADDOP;}
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
 #line 98 "dkk_lexer.l"
-{printf("MULOP detected\n"); yylval.oper = 0; return MULOP;}
+{yylval.oper = 0; return MULOP;}
 	YY_BREAK
 case 50:
 YY_RULE_SETUP
 #line 99 "dkk_lexer.l"
-{printf("MULOP detected\n"); yylval.oper = 1; return MULOP;}
+{yylval.oper = 1; return MULOP;}
 	YY_BREAK
 case 51:
 YY_RULE_SETUP
 #line 100 "dkk_lexer.l"
-{printf("MULOP detected\n"); yylval.oper = 2; return MULOP;}
+{yylval.oper = 2; return MULOP;}
 	YY_BREAK
 case 52:
 YY_RULE_SETUP
 #line 101 "dkk_lexer.l"
-{printf("NOTOP detected\n"); return NOTOP;}
+{return NOTOP;}
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
 #line 102 "dkk_lexer.l"
-{printf("SIZEOP detected\n"); return SIZEOP;}
+{return SIZEOP;}
 	YY_BREAK
 case 54:
 YY_RULE_SETUP
 #line 104 "dkk_lexer.l"
-{printf("LISTFUNC detected %s\n", yytext); yylval.str = strdup(yytext);}
+{printf("LISTFUNC detected %s\n", yytext); yylval.str = strdup(yytext); return LISTFUNC;}
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
@@ -1571,47 +1571,47 @@ case YY_STATE_EOF(STR):
 case 67:
 YY_RULE_SETUP
 #line 180 "dkk_lexer.l"
-{printf("LPAREN\n"); return LPAREN;}
+{return LPAREN;}
 	YY_BREAK
 case 68:
 YY_RULE_SETUP
 #line 181 "dkk_lexer.l"
-{printf("RPAREN\n"); return RPAREN;}
+{return RPAREN;}
 	YY_BREAK
 case 69:
 YY_RULE_SETUP
 #line 182 "dkk_lexer.l"
-{printf("SEMI\n"); return SEMI;}
+{return SEMI;}
 	YY_BREAK
 case 70:
 YY_RULE_SETUP
 #line 183 "dkk_lexer.l"
-{printf("DOT\n"); return DOT;}
+{return DOT;}
 	YY_BREAK
 case 71:
 YY_RULE_SETUP
 #line 184 "dkk_lexer.l"
-{printf("COMMA\n"); return COMMA;}
+{return COMMA;}
 	YY_BREAK
 case 72:
 YY_RULE_SETUP
 #line 185 "dkk_lexer.l"
-{printf("ASSIGN\n"); return ASSIGN;}
+{return ASSIGN;}
 	YY_BREAK
 case 73:
 YY_RULE_SETUP
 #line 186 "dkk_lexer.l"
-{printf("COLON\n"); return COLON;}
+{return COLON;}
 	YY_BREAK
 case 74:
 YY_RULE_SETUP
 #line 187 "dkk_lexer.l"
-{printf("LBRACK\n"); return LBRACK;}
+{return LBRACK;}
 	YY_BREAK
 case 75:
 YY_RULE_SETUP
 #line 188 "dkk_lexer.l"
-{printf("RBRACK\n"); return RBRACK;}
+{return RBRACK;}
 	YY_BREAK
 case 76:
 YY_RULE_SETUP
@@ -1621,12 +1621,12 @@ YY_RULE_SETUP
 case 77:
 YY_RULE_SETUP
 #line 190 "dkk_lexer.l"
-{printf("LBRACE\n"); return LBRACE;}
+{return LBRACE;}
 	YY_BREAK
 case 78:
 YY_RULE_SETUP
 #line 191 "dkk_lexer.l"
-{printf("RBRACE\n"); return RBRACE;}
+{return RBRACE;}
 	YY_BREAK
 case 79:
 YY_RULE_SETUP
@@ -1658,7 +1658,7 @@ YY_RULE_SETUP
 #line 199 "dkk_lexer.l"
 ECHO;
 	YY_BREAK
-#line 1662 "lex.yy.c"
+#line 1661 "lex.yy.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 

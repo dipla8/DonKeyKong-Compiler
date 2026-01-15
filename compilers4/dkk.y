@@ -14,6 +14,8 @@ asd_t *create_node(const char *s, asd_t *lleaf, asd_t *rleaf);
 char *print_ir(const asd_t *root);
 void print_tree(const asd_t *root);
 void yyerror(const char *s);
+void patchinc();
+int findsize(struct hashnode_s *n);
 int scope = 0;
 int dim_count = 0;
 HASHTBL *symtb;
@@ -24,7 +26,9 @@ struct hashnode_s *currclass = NULL;
 int stride= 1;
 int reg = 0;
 int label_count = 0;
+int noprint = 0;
 char *lastname = NULL;
+post_t *postlist = NULL;
 FILE *fd = NULL;
 %}
 
@@ -68,7 +72,7 @@ SEMI DOT COMMA ASSIGN COLON LBRACK RBRACK REFER LBRACE RBRACE METH INP OUT
 %token <str> ID STRING LISTFUNC
 %type <ival> init_value init_values initializer
 %type <myexpr> expression constant assignment variable
-%type <myexprlist> expression_list listexpression general_expression
+%type <myexprlist> expression_list listexpression general_expression optexpr
 %type <id> variabledef init_variabledef pass_variabledef 
 %type <idlist> variabledefs init_variabledefs parameter_list
 %type <node> class_func_header_start
@@ -203,10 +207,9 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 				else $$.node = create_node("-", $2.node, NULL);
 			   }
 	| SIZEOP expression {$$.type = T_INT; $$.val.ival = 0; $$.node = create_node("sizeof", $2.node, NULL);}
-	| INCDEC variable {$$ = $2; if($1 == 0) $$.node = create_node("++", $2.node, NULL);
-				      	else $$.node = create_node("--", $2.node, NULL);}
-	| variable INCDEC {$$ = $1; if($2 == 0)$$.node = create_node("++", $1.node, NULL);
-				      	else $$.node = create_node("--", $1.node, NULL);}
+	| INCDEC variable {$$ = $2; asd_t *node = malloc(sizeof(asd_t)); node->name = "1"; if($1 == 0) $$.node = create_node("+", $2.node, node);
+				      	else $$.node = create_node("-", $2.node, node);}
+	| variable INCDEC {$$ = $1; post_t *temp = malloc(sizeof(post_t)); temp->name = $1.node->name; temp->sign = $2; temp->next = postlist; postlist = temp;}
 	| variable {$$ = $1;}
 	| variable LPAREN expression_list RPAREN {$$ = $1;
 							 if($1.n->func != NULL){
@@ -258,6 +261,17 @@ variable : variable LBRACK general_expression RBRACK {
 									$$.type = $1.type;
 									$$.n = $1.n;}
 								}
+							}
+							if($1.rec_count == 0) fprintf(fd, "=,\t1,\t,\tstride\n");
+							fprintf(fd, "*,\tstride,\t%s,\tt%d\n", lastname, ++reg);
+							fprintf(fd, "+,\tindex,\tt%d,\tindex\n", reg);
+							fprintf(fd, "*,\tstride,\t%d,\tstride\n", $1.n->arr->dim_size[$1.rec_count]);
+							if($1.rec_count == $1.n->arr->dims-1){
+								fprintf(fd, "*,\tindex,\t%d,\tindex\n\n", findsize($1.n));
+								fprintf(fd, "l,\t%s,\tindex,\tt%d\n\n", $1.n->key, ++reg);
+								char *buf = malloc(10);
+								sprintf(buf, "t%d", reg);
+								$$.node->name = buf;
 							}
 					} // matrix
 	| variable DOT ID {if($1.n == NULL) yyerror("Variable doesn't exist.");
@@ -353,8 +367,8 @@ variable : variable LBRACK general_expression RBRACK {
 		}
 	| THIS {$$.rec_count = 0; $$.val.ival = 0; $$.n = currclass; $$.type = T_ID;}; // class
 general_expression : general_expression COMMA general_expression {expr_list_t *k = malloc(sizeof(expr_list_t)); k->exp = $3->exp; k->next =$1; k->listsize = $1->listsize+$3->listsize; $$ = k;}
-	| assignment{expr_list_t *k = malloc(sizeof(expr_list_t)); k->exp = malloc(sizeof(expr_t));k->exp->type = $1.type; k->exp->val = $1.val; k->exp->rec_count = $1.rec_count; k->exp->n = $1.n; k->next =  NULL;  k->listsize = 1;$$ = k; $$->exp->node = $1.node; print_tree($1.node); reg = 0; print_ir($1.node);};
-assignment : variable ASSIGN assignment {if($1.rec_count != $1.n->arr->dims) yyerror("Incorrect dimension indexing."); if($1.type != $3.type) yyerror("Type mismatch.");
+	| assignment{expr_list_t *k = malloc(sizeof(expr_list_t)); k->exp = malloc(sizeof(expr_t));k->exp->type = $1.type; k->exp->val = $1.val; k->exp->rec_count = $1.rec_count; k->exp->n = $1.n; k->next =  NULL;  k->listsize = 1;$$ = k; $$->exp->node = $1.node; print_tree($1.node); if(!noprint){ print_ir($1.node); patchinc();}};
+assignment : variable ASSIGN assignment {if($1.rec_count != $1.n->arr->dims) yyerror("Incorrect dimension indexing.");if(findsize($1.n) != findsize($3.n)) yyerror("Type mismatch.");
 					if($1.n->arr->islist)
 						$1.n->arr->listsize[$1.val.ival] = $3.val.ival; 
 					$$.node = create_node("=", $1.node, $3.node);
@@ -582,7 +596,7 @@ decl_statements : declarations statements
 declarations : declarations decltype typename variabledefs SEMI { var_decl($4, $3);}
 		| decltype typename variabledefs SEMI{ var_decl($3, $2);};
 decltype : STATIC | ;
-statements : statements statement | statement;
+statements : statements statement {reg = 0;} | statement {reg = 0;};
 statement : expression_statement
 	| if_statement
 	| while_statement
@@ -598,8 +612,8 @@ if_statement : IF LPAREN general_expression if_mid RPAREN statement %prec LOWER_
 		|IF LPAREN general_expression if_mid RPAREN statement ELSE statement;
 if_mid: {fprintf(fd, "bne,\t%s,\t0,\tL%d\n", lastname, ++label_count);};
 while_statement : WHILE LPAREN {fprintf(fd, "L%d:\n", ++label_count); scope++;} general_expression {fprintf(fd, "bne,\t%s,\t0,\tL%d\n", lastname, ++label_count);} RPAREN statement {scope--; fprintf(fd, "goto,\t,\t,\tL%d\n", label_count-1); fprintf(fd, "L%d:\n", label_count);};
-for_statement : FOR LPAREN optexpr SEMI optexpr SEMI optexpr RPAREN statement;
-optexpr : general_expression | ;
+for_statement : FOR {scope++;}LPAREN optexpr SEMI {fprintf(fd, "L%d:\n", ++label_count);} optexpr {fprintf(fd, "bne,\t%s,\t0,\tL%d\n", lastname, ++label_count); noprint=1;} SEMI optexpr {noprint=0;} RPAREN statement{print_ir($10->exp->node); fprintf(fd, "goto,\t,\t,\tL%d\n", label_count-1); fprintf(fd, "L%d:\n", label_count); scope--;};
+optexpr : general_expression {$$ = $1;} | {$$ = NULL;};
 return_statement : RETURN optexpr SEMI;
 io_statement : CIN INP in_list SEMI | COUT OUT out_list SEMI;
 in_list : in_list INP in_item | in_item;
@@ -663,7 +677,6 @@ void print_tree(const asd_t *root){
         printf("(empty tree)\n");
         return;
     }
-    /* Root is printed without branches */
     printf("%s\n", root->name ? root->name : "(null)");
 
     if (root->lchild)
@@ -697,7 +710,7 @@ char *print_ir(const asd_t *root) {
     char *rname = print_ir(root->rchild);
 
     if (!lname && rname) {
-        fprintf(fd, "%s,\t,\t%s,%s\n", root->name, rname, rname);
+        fprintf(fd, "%s,\t,\t%s,\t%s\n", root->name, rname, rname);
 	lastname = lname;
 	return NULL;
     }
@@ -708,7 +721,7 @@ char *print_ir(const asd_t *root) {
     }
     else if (!strcmp(root->name, "=")) {
         printf("%s %s %s\n", lname, root->name, rname);
-        fprintf(fd, "=,\t%s,\t-,\t%s\n", rname, lname);
+	fprintf(fd, "=,\t%s,\t-,\t%s\n", rname, lname);
 	lastname = lname;
         return NULL;
     }
@@ -718,10 +731,32 @@ char *print_ir(const asd_t *root) {
 
     reg++;
     char *name = malloc(sizeof(char) * 10);
-    sprintf(name, "t%d", reg - 1);
+    sprintf(name, "t%d", reg);
     fprintf(fd, "%s,\t%s,\t%s,\t%s\n", root->name, lname, rname, name);
     lastname = name;
     return name;
+}
+void patchinc(){
+	post_t *temp = postlist;
+	while(temp != NULL){
+		fprintf(fd, "+,\t%s,\t1,\t%s\n", temp->name, temp->name);
+		temp = temp->next;
+	}
+	postlist = NULL;
+}
+int findsize(struct hashnode_s *n){ 
+	if (!strcmp(n->data,"int"))
+		return sizeof(int);
+	else if (!strcmp(n->data,"char"))
+		return sizeof(char);
+	else if (!strcmp(n->data, "float"))
+		return sizeof(float);
+	else {
+		struct hashnode_s *tmp;
+		tmp = hashtbl_lookup(currtb, scope, n->data, currvis);
+		return findsize(tmp);
+	} 
+	return 0;
 }
 int main(){
 	fd = fopen("ir.dkk", "w");
