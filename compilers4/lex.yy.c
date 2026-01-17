@@ -1,5 +1,5 @@
 
-#line 2 "lex.yy.c"
+#line 3 "lex.yy.c"
 
 #define  YY_INT_ALIGNED short int
 
@@ -877,9 +877,9 @@ char *yytext;
     float fconvert();
     char st[MAX_STRING_SIZE];
     char *stp;    
-#line 880 "lex.yy.c"
+#line 881 "lex.yy.c"
 
-#line 882 "lex.yy.c"
+#line 883 "lex.yy.c"
 
 #define INITIAL 0
 #define STR 1
@@ -1101,7 +1101,7 @@ YY_DECL
 #line 40 "dkk_lexer.l"
 
 
-#line 1104 "lex.yy.c"
+#line 1105 "lex.yy.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -1177,7 +1177,7 @@ case 2:
 /* rule 2 can match eol */
 YY_RULE_SETUP
 #line 43 "dkk_lexer.l"
-{yylineno++;}
+{/*yylineno++;*/}
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
@@ -1323,7 +1323,7 @@ case 31:
 /* rule 31 can match eol */
 YY_RULE_SETUP
 #line 74 "dkk_lexer.l"
-{yylineno++;}
+{/*yylineno++;*/}
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
@@ -1469,7 +1469,7 @@ YY_RULE_SETUP
                 printf("String overflow.\n");
                 return T_EOF;
             }
-            yylineno++;
+            //yylineno++;
             *stp++ = '\n';
 }
 	YY_BREAK
@@ -1481,7 +1481,7 @@ YY_RULE_SETUP
                 printf("String overflow.\n");
                 return T_EOF;
             }
-            yylineno++;
+            //yylineno++;
             *stp++ = '\r';
 }
 	YY_BREAK
@@ -1658,7 +1658,7 @@ YY_RULE_SETUP
 #line 199 "dkk_lexer.l"
 ECHO;
 	YY_BREAK
-#line 1661 "lex.yy.c"
+#line 1662 "lex.yy.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 

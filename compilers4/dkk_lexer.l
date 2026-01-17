@@ -40,7 +40,7 @@ NEWLINE     \n
 %%
 
 {WS}          ;
-{NEWLINE}     {yylineno++;}
+{NEWLINE}     {/*yylineno++;*/}
 
 TYPEDEF     { return TYPEDEF;}
 CHAR        { return CHAR;}
@@ -71,7 +71,7 @@ MAIN        { return MAIN;}
 
 "/*"                {BEGIN(COMMENT);}
 <COMMENT>"*/"       {printf("/*...*/ comment detected\n"); BEGIN(INITIAL);}
-<COMMENT>\n         {yylineno++;}
+<COMMENT>\n         {/*yylineno++;*/}
 <COMMENT>.          ;
 <COMMENT><<EOF>>    {printf("unterminated comment\n"); return EOF;}
 
@@ -117,7 +117,7 @@ MAIN        { return MAIN;}
                 printf("String overflow.\n");
                 return T_EOF;
             }
-            yylineno++;
+            //yylineno++;
             *stp++ = '\n';
 }
 <STR>"\\r"      {
@@ -125,7 +125,7 @@ MAIN        { return MAIN;}
                 printf("String overflow.\n");
                 return T_EOF;
             }
-            yylineno++;
+            //yylineno++;
             *stp++ = '\r';
 }
 <STR>"\\t"      {

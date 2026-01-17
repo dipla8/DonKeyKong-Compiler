@@ -5,7 +5,6 @@
 #include "defines.h"
 #include "dkk.tab.h"
 
-
 extern int yylineno;
 int yylex(void);
 void dfs_post_order(const asd_t *node);
@@ -229,10 +228,10 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 							}
 							else if($3 != NULL)
 								printf("semantic error\n");
-						}else if(strcmp($1.n->data, "func"))yyerror("Variable is not a function.");}
+						}else if(strcmp($1.n->data, "func"))yyerror("Variable is not a function."); fprintf(fd, "=,\tcurrinst,\t,\tra\n"); fprintf(fd, "j,\t,\t,\tL-%s:\n", $1.n->key);}
 	| LENGTH LPAREN general_expression RPAREN
 	| NEW LPAREN general_expression RPAREN
-	| constant {$$.type = $1.type; $$.val = $1.val; $$.n = malloc(sizeof(expr_t)); $$.n->arr = malloc(sizeof(array_t)); $$.n->arr->dims = 0; $$.rec_count = 0;if($1.type == T_CHAR) $$.n->data = strdup("char"); else if($1.type == T_INT) $$.n->data = strdup("int"); else if($1.type == T_FLOAT) $$.n->data = strdup("float"); $$.node = create_node("const", NULL, NULL);}
+	| constant {$$.type = $1.type; $$.val = $1.val; $$.n = malloc(sizeof(expr_t)); $$.n->arr = malloc(sizeof(array_t)); $$.n->arr->dims = 0; $$.rec_count = 0;if($1.type == T_CHAR) $$.n->data = strdup("char"); else if($1.type == T_INT) $$.n->data = strdup("int"); else if($1.type == T_FLOAT) $$.n->data = strdup("float"); char *buf = malloc(15); if($1.type == T_INT) sprintf(buf, "%d", $$.val.ival); else if ($1.type == T_CHAR) sprintf(buf, "%c", $$.val.cval); if($1.type == T_FLOAT) sprintf(buf, "%f", $$.val.fval); $$.node = create_node(buf, NULL, NULL);}
 	| LPAREN general_expression RPAREN
 	| LPAREN standard_type RPAREN
 	| listexpression {$$.type = $1->exp->type; $$.val.ival = $1->listsize; $$.rec_count = 0; $$.n = NULL;};
@@ -268,7 +267,7 @@ variable : variable LBRACK general_expression RBRACK {
 							fprintf(fd, "*,\tstride,\t%d,\tstride\n", $1.n->arr->dim_size[$1.rec_count]);
 							if($1.rec_count == $1.n->arr->dims-1){
 								fprintf(fd, "*,\tindex,\t%d,\tindex\n\n", findsize($1.n));
-								fprintf(fd, "l,\t%s,\tindex,\tt%d\n\n", $1.n->key, ++reg);
+								fprintf(fd, "o,\t%s,\tindex,\tt%d\n\n", $1.n->key, ++reg);
 								char *buf = malloc(10);
 								sprintf(buf, "t%d", reg);
 								$$.node->name = buf;
@@ -441,7 +440,7 @@ short_par_func_header : func_header_start LPAREN parameter_types RPAREN {struct 
 										p->func->header_declared = 0;
 										p->func->node = $3;
 									  }};
-func_header_start : typename ID {$$.type = $1; $$.name = $2;} | LIST ID;
+func_header_start : typename ID {if(!strcmp($1, "float") ||!strcmp($1, "int") || !strcmp($1, "void")|| !strcmp($1, "char")){$$.type = $1; $$.name = $2;} else yyerror("Function type incorrect");} | LIST ID {$$.type = strdup("list"); $$.name = $2;};
 parameter_types : parameter_types COMMA typename pass_list_dims{
 		par_list_t *n = malloc(sizeof(par_list_t));
 		n->type = $3;
@@ -479,9 +478,9 @@ initializer : ASSIGN {dim_count=0;} init_value {$$ = $3;} | {$$=0;};
 init_value : expression {$$ = 1;}
         | LBRACE init_values RBRACE {$$ = $2;}
         | STRING {$$=strlen($1);};
-init_values : init_values COMMA init_value {$$ = $1 + $3;}
+init_values : init_values COMMA init_value {$$ = $1 + $3; /*fprintf(fd, "o,\tt,\t%d,\tt%d\n",$$,++reg); fprintf(fd, "=,\tconst,\t,\tt%d\n", reg);*/}
                 | init_value {$$= $1;}; 
-func_declaration : short_func_declaration | full_func_declaration;
+func_declaration : short_func_declaration | full_func_declaration {fprintf(fd,"j,\t,\t,\tra\n");};
 full_func_declaration : full_par_func_header {scope++;} LBRACE decl_statements RBRACE {currclass = NULL;hashtbl_get(currtb, scope); scope--;}
 		| nopar_class_func_header {scope++;} LBRACE decl_statements RBRACE{hashtbl_get(currtb, scope);scope--;}
 		| nopar_func_header {scope++;} LBRACE decl_statements RBRACE{hashtbl_get(currtb, scope);scope--;};
@@ -504,12 +503,12 @@ full_par_func_header : class_func_header_start LPAREN parameter_list RPAREN { st
 										}	
 									}
 									if (s != NULL || n != NULL) yyerror("Function parameter mismatch.");
-									else
-									p->func->header_declared = 1;
+									else p->func->header_declared = 1;
 									scope++;
 									var_decl($3, $3->id->data);
 									scope--;
 									currtb = symtb;
+									fprintf(fd, "L-%s:\n", $1->key);	
 								   }
 								   else yyerror("Class method incorrectly declared.");}
 		| func_header_start LPAREN parameter_list RPAREN { struct hashnode_s *p = hashtbl_lookup(currtb, scope, $1.name, 0);
@@ -532,13 +531,14 @@ full_par_func_header : class_func_header_start LPAREN parameter_list RPAREN { st
 										}	
 									}
 									if (s != NULL || n != NULL) yyerror("Function parameter mismatch.");
-									else
-									p->func->header_declared = 1;
+									else p->func->header_declared = 1;
 									scope++;
 									var_decl($3, $3->id->data);
 									scope--;
+									fprintf(fd, "L-%s:\n", $1.name);	
 								   }
 								   else if (p == NULL) {
+									fprintf(fd, "L-%s:\n", $1.name);	
 									hashtbl_insert(currtb, $1.name, "func", scope, NULL, 0, currvis);
 									p = hashtbl_lookup(currtb, scope, $1.name, 0);
 									p->func->ret_type = $1.type;
@@ -611,8 +611,8 @@ expression_statement : general_expression SEMI {currtb = symtb;};
 if_statement : IF LPAREN general_expression if_mid RPAREN statement %prec LOWER_THAN_ELSE{fprintf(fd, "L%d:\n", label_count);} 
 		|IF LPAREN general_expression if_mid RPAREN statement ELSE statement;
 if_mid: {fprintf(fd, "bne,\t%s,\t0,\tL%d\n", lastname, ++label_count);};
-while_statement : WHILE LPAREN {fprintf(fd, "L%d:\n", ++label_count); scope++;} general_expression {fprintf(fd, "bne,\t%s,\t0,\tL%d\n", lastname, ++label_count);} RPAREN statement {scope--; fprintf(fd, "goto,\t,\t,\tL%d\n", label_count-1); fprintf(fd, "L%d:\n", label_count);};
-for_statement : FOR {scope++;}LPAREN optexpr SEMI {fprintf(fd, "L%d:\n", ++label_count);} optexpr {fprintf(fd, "bne,\t%s,\t0,\tL%d\n", lastname, ++label_count); noprint=1;} SEMI optexpr {noprint=0;} RPAREN statement{print_ir($10->exp->node); fprintf(fd, "goto,\t,\t,\tL%d\n", label_count-1); fprintf(fd, "L%d:\n", label_count); scope--;};
+while_statement : WHILE LPAREN {fprintf(fd, "L%d:\n", ++label_count); scope++;} general_expression {fprintf(fd, "bne,\t%s,\t0,\tL%d\n", lastname, ++label_count);} RPAREN statement {scope--; fprintf(fd, "j,\t,\t,\tL%d\n", label_count-1); fprintf(fd, "L%d:\n", label_count);};
+for_statement : FOR {scope++;}LPAREN optexpr SEMI {fprintf(fd, "L%d:\n", ++label_count);} optexpr {fprintf(fd, "bne,\t%s,\t0,\tL%d\n", lastname, ++label_count); noprint=1;} SEMI optexpr {noprint=0;} RPAREN statement{print_ir($10->exp->node); fprintf(fd, "j,\t,\t,\tL%d\n", label_count-1); fprintf(fd, "L%d:\n", label_count); scope--;};
 optexpr : general_expression {$$ = $1;} | {$$ = NULL;};
 return_statement : RETURN optexpr SEMI;
 io_statement : CIN INP in_list SEMI | COUT OUT out_list SEMI;
@@ -622,7 +622,7 @@ out_list: out_list OUT out_item | out_item
 out_item: general_expression | STRING;
 comp_statement: LBRACE{scope++;} decl_statements {hashtbl_get(currtb, scope);scope--;}RBRACE;
 main_function: main_header {header_decl_check(currtb); scope++;} LBRACE decl_statements RBRACE {scope--; hashtbl_get(currtb, scope);};
-main_header: INT MAIN LPAREN RPAREN; 
+main_header: INT MAIN LPAREN RPAREN {fprintf(fd, "\nL-main:\n");}; 
 %%
 
 void header_decl_check(HASHTBL *hashtbl) {
@@ -739,7 +739,8 @@ char *print_ir(const asd_t *root) {
 void patchinc(){
 	post_t *temp = postlist;
 	while(temp != NULL){
-		fprintf(fd, "+,\t%s,\t1,\t%s\n", temp->name, temp->name);
+		if(!temp->sign)	fprintf(fd, "+,\t%s,\t1,\t%s\n", temp->name, temp->name);
+		else fprintf(fd, "-,\t%s,\t1,\t%s\n", temp->name, temp->name);
 		temp = temp->next;
 	}
 	postlist = NULL;
@@ -760,6 +761,7 @@ int findsize(struct hashnode_s *n){
 }
 int main(){
 	fd = fopen("ir.dkk", "w");
+	fprintf(fd, "j,\t,\t,\tL-main\n\n");
 	symtb = hashtbl_create(10, NULL);
 	currtb = symtb;
 	return yyparse();
