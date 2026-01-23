@@ -14,7 +14,6 @@ Retrieved from: http://en.literateprograms.org/Hash_table_(C)?oldid=19638
 */
 
 #include "defines.h"
-
 #include<string.h>
 #include<stdio.h>
 
@@ -77,8 +76,7 @@ void hashtbl_destroy(HASHTBL *hashtbl)
 	free(hashtbl);
 }
 
-int hashtbl_insert(HASHTBL *hashtbl, const char *key, char* data ,int scope, array_t *arr, int istype, int visibility)
-{
+int hashtbl_insert(HASHTBL *hashtbl, const char *key, char* data ,int scope, array_t *arr, int istype, int visibility, init_vals *init){
 	struct hashnode_s *node;
 	hash_size hash=hashtbl->hashfunc(key)%hashtbl->size;
 
@@ -99,7 +97,7 @@ int hashtbl_insert(HASHTBL *hashtbl, const char *key, char* data ,int scope, arr
 		free(node);
 		return -1;
 	}
-
+	
 	if(!(node->data=mystrdup(data))) {
 		free(node);
 		return -1;
@@ -121,7 +119,7 @@ int hashtbl_insert(HASHTBL *hashtbl, const char *key, char* data ,int scope, arr
 	}
 	else
 		node->func = NULL;
-
+	node->init = init;
 	struct hashnode_s *p = hashtbl_lookup(hashtbl, scope, data, 0);
 	printf("RIGHT AFTR LOOKUP\n");
 	if(p != NULL){
@@ -199,11 +197,98 @@ void *hashtbl_get(HASHTBL *hashtbl, int scope)
 				node=node->next;
 		}
 	}
-	
 	if (rem == -1)
 		printf("\t\t\t\t\tHASHTBL_GET():\tThere are no elements in the hash table with this scope!\n\t\tSCOPE = %d\n", scope);
 	
 	return NULL;
+}
+int findsize2(struct hashnode_s *n, HASHTBL *hashtbl, int scope){
+	int mul = 1;
+	if(n->arr != NULL)
+		for(int i = 0; i < n->arr->dims; i++)
+			mul = mul * n->arr->dim_size[i];
+	if (!strcmp(n->data,"int"))
+		return sizeof(int)*mul;
+	else if (!strcmp(n->data,"char"))
+		return sizeof(char)*mul;
+	else if (!strcmp(n->data, "float"))
+		return sizeof(float)*mul;
+	else {
+		struct hashnode_s *tmp;
+		tmp = hashtbl_lookup(hashtbl, scope, n->data, 5);
+		return (findsize2(tmp, hashtbl, scope) * mul);
+	} 
+	return 0;
+}
+int findsize3(struct hashnode_s *n, HASHTBL *hashtbl, int scope){
+	int mul = 1;
+	if(n->arr != NULL)
+		for(int i = 0; i < n->arr->dims; i++)
+			mul = mul * n->arr->dim_size[i];
+	if (!strcmp(n->data,"int"))
+		return mul;
+	else if (!strcmp(n->data,"char"))
+		return mul;
+	else if (!strcmp(n->data, "float"))
+		return mul;
+	else {
+		struct hashnode_s *tmp;
+		tmp = hashtbl_lookup(hashtbl, scope, n->data, 5);
+		return (findsize2(tmp, hashtbl, scope) * mul);
+	} 
+	return 0;
+}
+void print_top(FILE* fd, HASHTBL *hashtbl){
+	fprintf(fd, ".data\n");
+	hash_size n;
+	struct hashnode_s *node, *oldnode;	
+	for(n=0; n<hashtbl->size; ++n) {
+		node=hashtbl->nodes[n];
+		while(node) {
+			if(node->scope == 0 && strcmp(node->data, "func")) {
+				printf("\t\t\t\t\tHASHTBL_GET():\tSCOPE = %d, KEY = %s,  \tDATA = %s\n", 0, node->key, (char*)node->data);
+				printf("init is %p\n", node->init);
+				if(node->init == NULL)
+					fprintf(fd, "\t%s: .space %d\n", node->key, findsize2(node, hashtbl, 0));
+				else{
+					int real_size = findsize3(node, hashtbl, 0);
+					init_vals *temp = node->init;
+					fprintf(fd, "\t%s: .word", node->key);
+					for(int i = 0; i < real_size; i++){
+						if(temp != NULL){
+							if(temp->type == T_CHAR)
+								fprintf(fd, " %c", temp->val.cval);
+							if(temp->type == T_INT)
+								fprintf(fd, " %d", temp->val.ival);
+							if(temp->type == T_FLOAT)
+								fprintf(fd, " %f", temp->val.fval);
+							temp = temp->next;
+						}
+						else{
+							if(node->init->type == T_CHAR)
+								fprintf(fd, "\\0");
+							else fprintf(fd, " 0");
+						}
+						if(i != real_size - 1)
+							fprintf(fd, ",");
+					}
+					fprintf(fd,"\n");
+				}
+				oldnode = node;
+				node=node->next;
+			}else node=node->next;
+		}
+	}
+	fprintf(fd, ".text\n");
+	fprintf(fd, "\t.globl main");
+	for(n=0; n<hashtbl->size; ++n) {
+		node=hashtbl->nodes[n];
+		while(node) {
+			if(node->scope == 0 && !strcmp(node->data, "func"))
+				fprintf(fd, ", %s",node->key);
+			node = node->next;
+		}
+	}
 }
 struct hashnode_s *hashtbl_lookup(HASHTBL *hashtbl, int scope, const char* key, int perm){
 	struct hashnode_s *node;

@@ -2,41 +2,19 @@ j,	,	,	L-main
 
 L-deez:
 L1:
-<,	hello,	5,	t1
+==,	ok,	a,	t1
 bne,	t1,	0,	L2
 -,	hello,	1,	hello
 j,	,	,	L1
 L2:
 j,	,	,	ra
-o,	t,	2,	t1
-=,	const,	,	t1
-o,	t,	3,	t2
-=,	const,	,	t2
-o,	t,	4,	t3
-=,	const,	,	t3
-o,	t,	5,	t4
-=,	const,	,	t4
-o,	t,	6,	t5
-=,	const,	,	t5
-o,	t,	7,	t6
-=,	const,	,	t6
-o,	t,	8,	t7
-=,	const,	,	t7
-o,	t,	9,	t8
-=,	const,	,	t8
 
 L-main:
-=,	1,	,	stride
-*,	stride,	4,	t9
-+,	index,	t9,	index
-*,	stride,	5,	stride
-*,	stride,	0,	t10
-+,	index,	t10,	index
-*,	stride,	2,	stride
-*,	index,	4,	index
-
-o,	t,	index,	t11
-
-=,	t11,	-,	a
-=,	currinst,	,	ra
++,	3,	2,	t1
+=,	5.000000,	,	kostis
+=,	5,	,	ok
+=,	t1,	,	hello
++,	currinst,	4,	ra
 j,	,	,	L-deez:
++,	0,	1,	t1
+=,	t1,	,	a0

@@ -1352,7 +1352,7 @@ YY_RULE_SETUP
 case 36:
 YY_RULE_SETUP
 #line 84 "dkk_lexer.l"
-{printf("CCONST detected %s\n", yytext); yylval.cval = yytext[0]; return CCONST;}
+{printf("CCONST detected %s\n", yytext); yylval.cval = yytext[1]; return CCONST;}
 	YY_BREAK
 case 37:
 YY_RULE_SETUP

@@ -81,7 +81,7 @@ MAIN        { return MAIN;}
 
 {FCONST}    {printf("FCONST detected %s\n", yytext); yylval.fval = fconvert(yytext); return FCONST;}
 
-{CCONST}    {printf("CCONST detected %s\n", yytext); yylval.cval = yytext[0]; return CCONST;}
+{CCONST}    {printf("CCONST detected %s\n", yytext); yylval.cval = yytext[1]; return CCONST;}
 
 "||"     {return OROP;}
 "&&"     {return ANDOP;}

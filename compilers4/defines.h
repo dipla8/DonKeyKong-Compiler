@@ -3,6 +3,7 @@
 #define MAX_DIMENSIONS 15
 
 #include <stdlib.h>
+#include <stdio.h>
 
 typedef size_t hash_size;
 
@@ -42,6 +43,7 @@ typedef struct{
 typedef struct MyList {
 	char* type;
 	array_t *arr;
+	char* name;
 	struct MyList *next;
 } par_list_t;
 
@@ -61,6 +63,7 @@ struct hashnode_s {
 	func_t *func;
 	int istype;
         int visibility;
+	struct init_vals_t *init;
 	struct hashnode_s *next;
 };
 
@@ -76,12 +79,13 @@ typedef union {
 	float fval;
 	int ival;
 	char cval;
-} union_const
-;
+} union_const;
+
 typedef struct {
 	char *id;
 	array_t *arr;
 	char *data;
+	struct init_vals_t *init_vals;
 } my_id_t;
 
 typedef struct IdList {
@@ -89,12 +93,21 @@ typedef struct IdList {
 	struct IdList *next;
 } id_list_t;
 
+typedef struct init_vals_t{
+	union_const val;
+	type_t type;
+	int size;
+	char *string;
+	struct init_vals_t* next;
+}init_vals;
+
 typedef struct {
 	type_t type;
 	union_const val;	// address
 	int rec_count;
 	struct hashnode_s *n;
 	asd_t *node;
+	char* name;
 } expr_t;
 typedef struct explist{
 	expr_t *exp;
@@ -109,11 +122,12 @@ typedef struct {
 
 HASHTBL *hashtbl_create(hash_size size, hash_size (*hashfunc)(const char *));
 void hashtbl_destroy(HASHTBL *hashtbl);
-int hashtbl_insert(HASHTBL *hashtbl, const char *key, char *data, int scope, array_t *arr, int istype, int visibility);
+int hashtbl_insert(HASHTBL *hashtbl, const char *key, char *data, int scope, array_t *arr, int istype, int visibility, init_vals *init);
 int hashtbl_remove(HASHTBL *hashtbl, const char *key,int scope, array_t *arr);
 void *hashtbl_get(HASHTBL *hashtbl, int scope);
 struct hashnode_s *hashtbl_lookup(HASHTBL *hashtbl, int scope, const char *key, int perm);
 void var_decl(id_list_t *var_list, char* data);
 void var_to_expr(expr_t *expr, char* name);
 void header_decl_check(HASHTBL *hashtbl);
+void print_top(FILE* fd, HASHTBL *hashtbl);
 #endif

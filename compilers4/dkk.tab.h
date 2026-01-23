@@ -137,8 +137,9 @@ union YYSTYPE
 	par_list_t *par_list;
 	expr_list_t *myexprlist;
 	struct hashnode_s *node;
+	init_vals *init_vals1;
 
-#line 142 "dkk.tab.h"
+#line 143 "dkk.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

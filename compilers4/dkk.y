@@ -65,11 +65,13 @@ SEMI DOT COMMA ASSIGN COLON LBRACK RBRACK REFER LBRACE RBRACE METH INP OUT
 	par_list_t *par_list;
 	expr_list_t *myexprlist;
 	struct hashnode_s *node;
+	init_vals *init_vals1;
 }
 %token <oper> ADDOP EQUOP RELOP MULOP INCDEC
 %token <ival> ICONST
 %token <str> ID STRING LISTFUNC
-%type <ival> init_value init_values initializer
+%type <init_vals1> init_value init_values initializer
+%type <ival> decltype
 %type <myexpr> expression constant assignment variable
 %type <myexprlist> expression_list listexpression general_expression optexpr
 %type <id> variabledef init_variabledef pass_variabledef 
@@ -88,7 +90,7 @@ global_declaration : typedef_declaration
 	| union_declaration
 	| global_var_declaration
 	| func_declaration;
-typedef_declaration : TYPEDEF typename listspec ID {dim_count = 0;} dims SEMI {hashtbl_insert(symtb, $4, $2 , scope, $6, 1, currvis);} // scope is always 0
+typedef_declaration : TYPEDEF typename listspec ID {dim_count = 0;} dims SEMI {hashtbl_insert(symtb, $4, $2 , scope, $6, 1, currvis, NULL);} // scope is always 0
 typename : standard_type {$$ = $1;}
 		| ID {struct hashnode_s *p = hashtbl_lookup(symtb, scope, $1, currvis); if(p == NULL || p->istype == 0) yyerror("Type doesn't exist."); {$$ = p->key;}};
 standard_type : CHAR {$$="char";}
@@ -221,6 +223,7 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 							while(p1!=NULL && p2!=NULL){
 								if(strcmp(p1->type,p2->exp->n->data))
 									yyerror("Parameter type mismatch.");
+								fprintf(fd, "=,\t%s,\t,\t%s\n", p2->exp->name, p1->name);
 								p1=p1->next; p2=p2->next;
 							}
 							if(p1 != NULL || p2!=NULL)
@@ -228,7 +231,7 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 							}
 							else if($3 != NULL)
 								printf("semantic error\n");
-						}else if(strcmp($1.n->data, "func"))yyerror("Variable is not a function."); fprintf(fd, "=,\tcurrinst,\t,\tra\n"); fprintf(fd, "j,\t,\t,\tL-%s:\n", $1.n->key);}
+						}else if(strcmp($1.n->data, "func"))yyerror("Variable is not a function."); fprintf(fd, "+,\tcurrinst,\t4,\tra\n"); fprintf(fd, "j,\t,\t,\tL-%s:\n", $1.n->key);}
 	| LENGTH LPAREN general_expression RPAREN
 	| NEW LPAREN general_expression RPAREN
 	| constant {$$.type = $1.type; $$.val = $1.val; $$.n = malloc(sizeof(expr_t)); $$.n->arr = malloc(sizeof(array_t)); $$.n->arr->dims = 0; $$.rec_count = 0;if($1.type == T_CHAR) $$.n->data = strdup("char"); else if($1.type == T_INT) $$.n->data = strdup("int"); else if($1.type == T_FLOAT) $$.n->data = strdup("float"); char *buf = malloc(15); if($1.type == T_INT) sprintf(buf, "%d", $$.val.ival); else if ($1.type == T_CHAR) sprintf(buf, "%c", $$.val.cval); if($1.type == T_FLOAT) sprintf(buf, "%f", $$.val.fval); $$.node = create_node(buf, NULL, NULL);}
@@ -267,7 +270,7 @@ variable : variable LBRACK general_expression RBRACK {
 							fprintf(fd, "*,\tstride,\t%d,\tstride\n", $1.n->arr->dim_size[$1.rec_count]);
 							if($1.rec_count == $1.n->arr->dims-1){
 								fprintf(fd, "*,\tindex,\t%d,\tindex\n\n", findsize($1.n));
-								fprintf(fd, "o,\t%s,\tindex,\tt%d\n\n", $1.n->key, ++reg);
+								fprintf(fd, "lw,\t%s,\tindex,\tt%d\n\n", $1.n->key, ++reg);
 								char *buf = malloc(10);
 								sprintf(buf, "t%d", reg);
 								$$.node->name = buf;
@@ -320,7 +323,9 @@ variable : variable LBRACK general_expression RBRACK {
 							$$.val.ival = 1;
 							$$.type = $3->exp->type;
 						} // list
-	| decltype ID {struct hashnode_s *p= hashtbl_lookup(currtb, scope, $2, currvis);
+	| decltype ID {struct hashnode_s *p;
+			if($1) p = hashtbl_lookup(currtb, 0, $2, currvis);
+			else p = hashtbl_lookup(currtb, scope, $2, currvis);
 			if(p== NULL && deflist == NULL)
 				yyerror("Variable doesn't exist.");
 			else if(p == NULL && deflist != NULL){
@@ -366,20 +371,20 @@ variable : variable LBRACK general_expression RBRACK {
 		}
 	| THIS {$$.rec_count = 0; $$.val.ival = 0; $$.n = currclass; $$.type = T_ID;}; // class
 general_expression : general_expression COMMA general_expression {expr_list_t *k = malloc(sizeof(expr_list_t)); k->exp = $3->exp; k->next =$1; k->listsize = $1->listsize+$3->listsize; $$ = k;}
-	| assignment{expr_list_t *k = malloc(sizeof(expr_list_t)); k->exp = malloc(sizeof(expr_t));k->exp->type = $1.type; k->exp->val = $1.val; k->exp->rec_count = $1.rec_count; k->exp->n = $1.n; k->next =  NULL;  k->listsize = 1;$$ = k; $$->exp->node = $1.node; print_tree($1.node); if(!noprint){ print_ir($1.node); patchinc();}};
+	| assignment{expr_list_t *k = malloc(sizeof(expr_list_t)); k->exp = malloc(sizeof(expr_t));k->exp->type = $1.type; k->exp->val = $1.val; k->exp->rec_count = $1.rec_count; k->exp->n = $1.n; k->next =  NULL;  k->listsize = 1;$$ = k; $$->exp->node = $1.node; print_tree($1.node); if(!noprint){ print_ir($1.node); patchinc(); $$->exp->name = lastname;}};
 assignment : variable ASSIGN assignment {if($1.rec_count != $1.n->arr->dims) yyerror("Incorrect dimension indexing.");if(findsize($1.n) != findsize($3.n)) yyerror("Type mismatch.");
 					if($1.n->arr->islist)
 						$1.n->arr->listsize[$1.val.ival] = $3.val.ival; 
 					$$.node = create_node("=", $1.node, $3.node);
 					}	
    	   | variable ASSIGN STRING 
-	| expression {$$ = $1;};
+	| expression {$$ = $1; /*if($1.n == NULL){char *temp = malloc(15); if($1.type == T_INT) sprintf(temp, "%d", $1.val.ival); else if($1.type == T_CHAR) sprintf(temp, "c", $1.val.cval); else if($1.type == T_FLOAT) sprintf(temp, "%2f", $1.val.fval); $$.name = temp;} else lastname = $1.n->key;*/};
 expression_list : general_expression {$$ = $1;} | {$$ = NULL;};
 constant : CCONST {$$.type = T_CHAR; $$.val.cval = yylval.cval;}
 	| ICONST {$$.type = T_INT; $$.val.ival = yylval.ival;}
 	| FCONST {$$.type = T_FLOAT; $$.val.fval = yylval.fval;};
 listexpression : LBRACK expression_list RBRACK {$$ = $2;};
-class_declaration : CLASS ID {hashtbl_insert(symtb, $2, "class", scope, NULL, 1, 0); struct hashnode_s *p = hashtbl_lookup(symtb, scope, $2, currvis); currtb = p->cla->classtb; scope++;}class_body SEMI {scope--;struct hashnode_s *p = hashtbl_lookup(symtb, scope, $2, currvis); p->cla->superclass = $4;currtb = symtb; currvis = 0;};
+class_declaration : CLASS ID {hashtbl_insert(symtb, $2, "class", scope, NULL, 1, 0, NULL); struct hashnode_s *p = hashtbl_lookup(symtb, scope, $2, currvis); currtb = p->cla->classtb; scope++;}class_body SEMI {scope--;struct hashnode_s *p = hashtbl_lookup(symtb, scope, $2, currvis); p->cla->superclass = $4;currtb = symtb; currvis = 0;};
 class_body : parent LBRACE members_methods RBRACE {$$ = $1;};
 parent : COLON ID {$$ = $2;}|  {$$ = NULL;};
 members_methods : members_methods access member_or_method | access member_or_method;
@@ -392,12 +397,14 @@ var_declaration : typename variabledefs SEMI {var_decl($2, $1);};
 variabledefs : variabledefs COMMA variabledef {
           id_list_t* n = malloc(sizeof(id_list_t));
           n->id = $3;
-          n->next = $1;
+          n->id->init_vals = NULL;
+	  n->next = $1;
           $$ = n;
       }
 	| variabledef {
           id_list_t* n = malloc(sizeof(id_list_t));
           n->id = $1;
+	  n->id->init_vals = NULL;
           n->next = NULL;
           $$ = n;
       };
@@ -424,7 +431,7 @@ method : short_func_declaration;
 short_func_declaration : short_par_func_header SEMI | nopar_func_header SEMI{ struct hashnode_s *p = hashtbl_lookup(currtb, scope, $1.name, currvis);
 									  if (p != NULL) yyerror("Double header declaration");
 									  else {
-									  	hashtbl_insert(currtb, $1.name, "func", scope, NULL, 1, currvis);
+									  	hashtbl_insert(currtb, $1.name, "func", scope, NULL, 1, currvis, NULL);
 										p = hashtbl_lookup(currtb, scope, $1.name, currvis);
 										p->func->ret_type = $1.type;			
 										p->func->header_declared = 0;
@@ -434,7 +441,7 @@ short_func_declaration : short_par_func_header SEMI | nopar_func_header SEMI{ st
 short_par_func_header : func_header_start LPAREN parameter_types RPAREN {struct hashnode_s *p = hashtbl_lookup(currtb, scope, $1.name, currvis);
 									  if (p != NULL) yyerror("Double header declaration");
 									  else { 
-										hashtbl_insert(currtb, $1.name, "func", scope, NULL, 1, currvis);
+										hashtbl_insert(currtb, $1.name, "func", scope, NULL, 1, currvis, NULL);
 										p = hashtbl_lookup(currtb, scope, $1.name, currvis);
 										p->func->ret_type = $1.type;			
 										p->func->header_declared = 0;
@@ -446,24 +453,26 @@ parameter_types : parameter_types COMMA typename pass_list_dims{
 		n->type = $3;
 		n->next = $1;
 		n->arr = $4;
+		n->name = NULL;
 		$$ = n; }
 		| typename pass_list_dims {
 		par_list_t *n = malloc(sizeof(par_list_t));
 		n->type = $1;
 		n->next = NULL;
 		n->arr = $2;
+		n->name = NULL;
 		$$= n;
 		};
 pass_list_dims : listspec dims {$$ = $2;} | REFER {array_t *n = malloc(sizeof(array_t)); n->dims = -1; $$ = n;};
 nopar_func_header : func_header_start LPAREN RPAREN {$$=$1;};
-union_declaration : UNION ID {hashtbl_insert(symtb, $2, "union", 0, NULL, 1, 0); struct hashnode_s *p = hashtbl_lookup(symtb, scope, $2, 0); currtb = p->un->untb;} union_body SEMI {currtb = symtb;};
+union_declaration : UNION ID {hashtbl_insert(symtb, $2, "union", 0, NULL, 1, 0, NULL); struct hashnode_s *p = hashtbl_lookup(symtb, scope, $2, 0); currtb = p->un->untb;} union_body SEMI {currtb = symtb;};
 global_var_declaration : typename init_variabledefs SEMI {var_decl($2, $1); deflist = NULL;};
 init_variabledefs : init_variabledefs COMMA init_variabledef  {
          		 id_list_t* n = malloc(sizeof(id_list_t));
          		 n->id = $3;
          		 n->next = $1;
          		 $$ = n;
-			deflist = n;
+			 deflist = n;
       			}
 				| init_variabledef{
 					id_list_t* n = malloc(sizeof(id_list_t));
@@ -473,12 +482,12 @@ init_variabledefs : init_variabledefs COMMA init_variabledef  {
 					deflist = n;
 				};
 
-init_variabledef : variabledef initializer {int p=1; for(int i=0;($1!=NULL && $1->arr!=NULL && i<$1->arr->dims); i++) p = p * $1->arr->dim_size[i]; if((($1!=NULL)&&($1->data!=NULL)&&(!strcmp($1->data,"char"))&&($1->arr!=NULL)&& p==$2)||p<$2) yyerror("Wrong Initialization.");};
-initializer : ASSIGN {dim_count=0;} init_value {$$ = $3;} | {$$=0;};
-init_value : expression {$$ = 1;}
+init_variabledef : variabledef initializer {int p=1; for(int i=0;($1!=NULL && $1->arr!=NULL && i<$1->arr->dims); i++) p = p * $1->arr->dim_size[i]; if((($1!=NULL)&&($1->data!=NULL)&&(!strcmp($1->data,"char"))&&($1->arr!=NULL)&& p==$2->size)||p<$2->size) yyerror("Wrong Initialization."); $$->init_vals = $2;};
+initializer : ASSIGN {dim_count=0;} init_value {$$ = $3;} | {$$=NULL;};
+init_value : /*expression {$$ = 1;}*/ constant {init_vals *p = malloc(sizeof(init_vals)); p->val = $1.val; p->next = NULL;  $$ = p; $$->size = 1; $$->type = $1.type;}
         | LBRACE init_values RBRACE {$$ = $2;}
-        | STRING {$$=strlen($1);};
-init_values : init_values COMMA init_value {$$ = $1 + $3; /*fprintf(fd, "o,\tt,\t%d,\tt%d\n",$$,++reg); fprintf(fd, "=,\tconst,\t,\tt%d\n", reg);*/}
+        | STRING {$$->string = $1; $$->size=strlen($1); $$->type = T_CHAR;};
+init_values : init_values COMMA init_value {if ($1->type !=$3->type) yyerror("Initialization types dont match."); init_vals *tmp = $1; while(tmp->next) tmp = tmp->next; tmp->next = $3; $$ = $1; $$->size = $1->size + $3->size;}
                 | init_value {$$= $1;}; 
 func_declaration : short_func_declaration | full_func_declaration {fprintf(fd,"j,\t,\t,\tra\n");};
 full_func_declaration : full_par_func_header {scope++;} LBRACE decl_statements RBRACE {currclass = NULL;hashtbl_get(currtb, scope); scope--;}
@@ -500,12 +509,13 @@ full_par_func_header : class_func_header_start LPAREN parameter_list RPAREN { st
 										}else{
 											s = s->next;
 											n = n->next;
+											s->name = n->id->id;
 										}	
 									}
 									if (s != NULL || n != NULL) yyerror("Function parameter mismatch.");
 									else p->func->header_declared = 1;
 									scope++;
-									var_decl($3, $3->id->data);
+									var_decl($3, NULL);
 									scope--;
 									currtb = symtb;
 									fprintf(fd, "L-%s:\n", $1->key);	
@@ -528,18 +538,19 @@ full_par_func_header : class_func_header_start LPAREN parameter_list RPAREN { st
 										}else{
 											s = s->next;
 											n = n->next;
+											s->name = n->id->id;
 										}	
 									}
 									if (s != NULL || n != NULL) yyerror("Function parameter mismatch.");
 									else p->func->header_declared = 1;
 									scope++;
-									var_decl($3, $3->id->data);
+									var_decl($3, NULL);
 									scope--;
 									fprintf(fd, "L-%s:\n", $1.name);	
 								   }
 								   else if (p == NULL) {
 									fprintf(fd, "L-%s:\n", $1.name);	
-									hashtbl_insert(currtb, $1.name, "func", scope, NULL, 0, currvis);
+									hashtbl_insert(currtb, $1.name, "func", scope, NULL, 0, currvis, NULL);
 									p = hashtbl_lookup(currtb, scope, $1.name, 0);
 									p->func->ret_type = $1.type;
 									p->func->header_declared = 1;
@@ -550,6 +561,7 @@ full_par_func_header : class_func_header_start LPAREN parameter_list RPAREN { st
 									while (n) {
 									    p2 = malloc(sizeof(par_list_t));
 									    p2->type = n->id->data;
+									    p2->name = n->id->id;
 									    p2->next = NULL;
 									    if (!head) {
 									        head = p2;
@@ -562,7 +574,7 @@ full_par_func_header : class_func_header_start LPAREN parameter_list RPAREN { st
 									}
 									p->func->node = head;
 									scope++;
-									var_decl($3, $3->id->data);
+									var_decl($3, NULL);
 									scope--;
 								  }
 								 };
@@ -593,9 +605,9 @@ nopar_class_func_header : class_func_header_start LPAREN RPAREN {if($1->func != 
 decl_statements : declarations statements
 		| declarations
 		| statements | ;
-declarations : declarations decltype typename variabledefs SEMI { var_decl($4, $3);}
-		| decltype typename variabledefs SEMI{ var_decl($3, $2);};
-decltype : STATIC | ;
+declarations : declarations decltype typename variabledefs SEMI {int old_scope = scope; if($2) scope = 0; var_decl($4, $3); scope = old_scope;}
+		| decltype typename variabledefs SEMI{ int old_scope = scope; if($1) scope = 0; var_decl($3, $2); scope = old_scope;};
+decltype : STATIC {$$ = 1;} | {$$ = 0;};
 statements : statements statement {reg = 0;} | statement {reg = 0;};
 statement : expression_statement
 	| if_statement
@@ -614,17 +626,16 @@ if_mid: {fprintf(fd, "bne,\t%s,\t0,\tL%d\n", lastname, ++label_count);};
 while_statement : WHILE LPAREN {fprintf(fd, "L%d:\n", ++label_count); scope++;} general_expression {fprintf(fd, "bne,\t%s,\t0,\tL%d\n", lastname, ++label_count);} RPAREN statement {scope--; fprintf(fd, "j,\t,\t,\tL%d\n", label_count-1); fprintf(fd, "L%d:\n", label_count);};
 for_statement : FOR {scope++;}LPAREN optexpr SEMI {fprintf(fd, "L%d:\n", ++label_count);} optexpr {fprintf(fd, "bne,\t%s,\t0,\tL%d\n", lastname, ++label_count); noprint=1;} SEMI optexpr {noprint=0;} RPAREN statement{print_ir($10->exp->node); fprintf(fd, "j,\t,\t,\tL%d\n", label_count-1); fprintf(fd, "L%d:\n", label_count); scope--;};
 optexpr : general_expression {$$ = $1;} | {$$ = NULL;};
-return_statement : RETURN optexpr SEMI;
+return_statement : RETURN optexpr SEMI {if($2 != NULL) fprintf(fd, "=,\t%s,\t,\ta0\n", $2->exp->name);};
 io_statement : CIN INP in_list SEMI | COUT OUT out_list SEMI;
 in_list : in_list INP in_item | in_item;
 in_item : variable;
 out_list: out_list OUT out_item | out_item
 out_item: general_expression | STRING;
 comp_statement: LBRACE{scope++;} decl_statements {hashtbl_get(currtb, scope);scope--;}RBRACE;
-main_function: main_header {header_decl_check(currtb); scope++;} LBRACE decl_statements RBRACE {scope--; hashtbl_get(currtb, scope);};
+main_function: main_header {header_decl_check(currtb); scope++;} LBRACE decl_statements RBRACE {scope--;/*hashtbl_get(currtb, scope);*/return 0;};
 main_header: INT MAIN LPAREN RPAREN {fprintf(fd, "\nL-main:\n");}; 
 %%
-
 void header_decl_check(HASHTBL *hashtbl) {
 	hash_size i;
 	struct hashnode_s *node, *old;
@@ -640,14 +651,15 @@ void var_decl(id_list_t *var_list, char *data) {
 	while (curr) {
 		printf("str = %s\n", curr->id->id);
 		struct hashnode_s *p = hashtbl_lookup(currtb, scope, curr->id->id, 0);
+		printf("init is early %p\n", curr->id->init_vals);
 		if(p != NULL && p->scope == scope)
 			yyerror("Variable double declaration.");
-		else {hashtbl_insert(currtb, curr->id->id, data, scope, curr->id->arr, 0, currvis);printf("data = %s, key = %s\n", data, curr->id->id);}
+		else if(data == NULL) {hashtbl_insert(currtb, curr->id->id, curr->id->data, scope, curr->id->arr, 0, currvis,curr->id->init_vals);printf("data = %s, key = %s\n", data, curr->id->id);}
+		else {hashtbl_insert(currtb, curr->id->id, data, scope, curr->id->arr, 0, currvis, curr->id->init_vals);printf("data = %s, key = %s\n", data, curr->id->id);}
 		curr = curr->next;
 		prv = curr;
 	}
 }
-
 void yyerror(const char *s){
 	printf("error: %s in line: %d\n", s, yylineno);
 	exit(255);
@@ -671,7 +683,6 @@ static void print_tree_rec(const asd_t *node, const char *prefix, int is_left){
             print_tree_rec(node->rchild, new_prefix, 0);
     }
 }
-
 void print_tree(const asd_t *root){	
     if (!root) {
         printf("(empty tree)\n");
@@ -684,7 +695,6 @@ void print_tree(const asd_t *root){
     if (root->rchild)
         print_tree_rec(root->rchild, "", 0);
 }
-
 asd_t *create_node(const char *s, asd_t *lleaf, asd_t *rleaf) {
 	asd_t *node = malloc(sizeof(asd_t));
 
@@ -721,7 +731,7 @@ char *print_ir(const asd_t *root) {
     }
     else if (!strcmp(root->name, "=")) {
         printf("%s %s %s\n", lname, root->name, rname);
-	fprintf(fd, "=,\t%s,\t-,\t%s\n", rname, lname);
+	fprintf(fd, "sw,\t%s,\t-,\t%s\n", rname, lname);
 	lastname = lname;
         return NULL;
     }
@@ -764,7 +774,11 @@ int main(){
 	fprintf(fd, "j,\t,\t,\tL-main\n\n");
 	symtb = hashtbl_create(10, NULL);
 	currtb = symtb;
-	return yyparse();
+	int res = yyparse();
+	FILE *fd_asm = fopen("out.asm", "w");
+	print_top(fd_asm, symtb);
 	hashtbl_destroy(symtb);
+	fclose(fd_asm);
 	fclose(fd);
+	return res;
 }
