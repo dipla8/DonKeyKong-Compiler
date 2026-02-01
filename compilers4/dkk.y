@@ -17,9 +17,8 @@ void yyerror(const char *s);
 void patchinc();
 int findsize(struct hashnode_s *n);
 bindv *findoff(char *fname, char *name);
-int is_number(char *s);
 void print_assembly(char *name, char* lname, char* rname, const asd_t *root, int reg);
-void normalize_node(asd_t *tmp1, asd_t *tmp2, asd_t *node1, asd_t *node2, char *name1, char *name2);
+void normalize_node(asd_t **tmp1, asd_t **tmp2, asd_t *node1, asd_t *node2, char *name1, char *name2);
 int scope = 0;
 int dim_count = 0;
 HASHTBL *symtb;
@@ -165,29 +164,29 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
    					  	$$.type = $1.type;
 					  else	yyerror("Wrong expression type.");
 					asd_t *tmp1; asd_t *tmp2;
-					normalize_node(tmp1, tmp2, $1.node, $3.node, $1.name, $3.name);
+					normalize_node(&tmp1, &tmp2, $1.node, $3.node, $1.name, $3.name);
 				      	$$.node = create_node("||", tmp1, tmp2);
 					}
 	| expression ANDOP expression { if (($1.type == T_INT) && ($3.type == T_INT))
    					  	$$.type = $1.type;
 					  else yyerror("Wrong expression type.");
 					asd_t *tmp1; asd_t *tmp2;
-					normalize_node(tmp1, tmp2, $1.node, $3.node, $1.name, $3.name);
+					normalize_node(&tmp1, &tmp2, $1.node, $3.node, $1.name, $3.name);
 				      	$$.node = create_node("&&", tmp1, tmp2);
 				      }
 	| expression EQUOP expression {if((($1.type == T_INT || $1.type == T_FLOAT) && (($3.type == T_INT) ||($3.type == T_FLOAT))) || ($1.type == T_CHAR && $3.type == T_CHAR))
 						$$.type = T_INT;
 					else yyerror("Wrong expression type.");
 					asd_t *tmp1; asd_t *tmp2;
-					normalize_node(tmp1, tmp2, $1.node, $3.node, $1.name, $3.name);
-				      	if($2 == 0)$$.node = create_node("==", tmp1, tmp2);
+					normalize_node(&tmp1, &tmp2, $1.node, $3.node, $1.name, $3.name);
+					if($2 == 0)$$.node = create_node("==", tmp1, tmp2);
 				      	else $$.node = create_node("!=", tmp1, tmp2);
 				      }
 	| expression RELOP expression {if((($1.type == T_INT || $1.type == T_FLOAT) && (($3.type == T_INT) ||($3.type == T_FLOAT))) || ($1.type == T_CHAR && $3.type == T_CHAR))
 						$$.type = T_INT;
 					else yyerror("Wrong expression type.");
 					asd_t *tmp1; asd_t *tmp2;
-					normalize_node(tmp1, tmp2, $1.node, $3.node, $1.name, $3.name);
+					normalize_node(&tmp1, &tmp2, $1.node, $3.node, $1.name, $3.name);
 				      	if($2 == 0)$$.node = create_node(">", tmp1, tmp2);
 				      	else if($2 == 1)$$.node = create_node(">=", tmp1, tmp2);
 				      	else if($2 == 2)$$.node = create_node("<", tmp1, tmp2);
@@ -199,7 +198,7 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 						$$.type = T_FLOAT;
 					else yyerror("Wrong expression type.");
 					asd_t *tmp1; asd_t *tmp2;
-					normalize_node(tmp1, tmp2, $1.node, $3.node, $1.name, $3.name);
+					normalize_node(&tmp1, &tmp2, $1.node, $3.node, $1.name, $3.name);
 					$$.val.ival = $1.val.ival + $3.val.ival;
 					if($2 == 0) $$.node = create_node("+", tmp1, tmp2);
 					else $$.node = create_node("-", tmp1, tmp2);
@@ -210,7 +209,7 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 						$$.type = T_FLOAT;
 					else yyerror("Wrong expression type.");
 					asd_t *tmp1; asd_t *tmp2;
-					normalize_node(tmp1, tmp2, $1.node, $3.node, $1.name, $3.name);
+					normalize_node(&tmp1, &tmp2, $1.node, $3.node, $1.name, $3.name);
 				      	if($2 == 0)$$.node = create_node("*", tmp1, tmp2);
 				      	else if($2 == 1)$$.node = create_node("/", tmp1, tmp2);
 				      	else $$.node = create_node("%", tmp1, tmp2);
@@ -218,7 +217,7 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 	| NOTOP expression { if ($2.type != T_INT) yyerror("Wrong expression type.");
 	                     else $$.type = $2.type;
 				asd_t *tmp1;
-				normalize_node(tmp1, NULL, $2.node, NULL, $2.name, NULL);
+				normalize_node(&tmp1, NULL, $2.node, NULL, $2.name, NULL);
 			     $$.node = create_node("!", tmp1, NULL);
 	                   }
 	| ADDOP expression { if (($2.type != T_INT) || ($2.type != T_FLOAT)) yyerror("Wrong expression type.");
@@ -230,11 +229,11 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 					if($2.type == T_INT)
 						$$.val.fval = ($2.val.fval * (-1));
 				asd_t *tmp1;
-				normalize_node(tmp1, NULL, $2.node, NULL, $2.name, NULL);
+				normalize_node(&tmp1, NULL, $2.node, NULL, $2.name, NULL);
 				if($1 == 0) $$.node = create_node("+", tmp1, NULL);
 				else $$.node = create_node("-", tmp1, NULL);
 			   }
-	| SIZEOP expression {$$.type = T_INT; $$.val.ival = 0; asd_t *tmp1; normalize_node(tmp1, NULL, $2.node, NULL, $2.name, NULL); $$.node = create_node("sizeof", tmp1, NULL);}
+	| SIZEOP expression {$$.type = T_INT; $$.val.ival = 0; asd_t *tmp1; normalize_node(&tmp1, NULL, $2.node, NULL, $2.name, NULL); $$.node = create_node("sizeof", tmp1, NULL);}
 	| INCDEC variable {$$ = $2; asd_t *node = malloc(sizeof(asd_t)); node->name = "1"; if($1 == 0) $$.node = create_node("+", $2.node, node);
 				      	else $$.node = create_node("-", $2.node, node);}
 	| variable INCDEC {$$ = $1; post_t *temp = malloc(sizeof(post_t));if($1.node != NULL && $1.node->name != NULL) temp->name = $1.node->name; else temp->name = strdup($1.name); temp->sign = $2; temp->next = postlist; postlist = temp;}
@@ -866,32 +865,32 @@ char *print_ir(const asd_t *root) {
 }
 void print_assembly(char *name, char* lname, char* rname, const asd_t *root, int reg){
 if(*root->name == '+'){
-		if(is_number(lname) && is_number(rname))
+		if(atoi(lname) && atoi(rname))
 			fprintf(fd3, "li %s, %d\n", name, atoi(lname) + atoi(rname));
-		else if(is_number(lname))
+		else if(atoi(lname))
 			fprintf(fd3, "addi %s, %s, %d\n", name, rname, atoi(lname)); // REVERSED
-		else if(is_number(rname))
+		else if(atoi(rname))
 			fprintf(fd3, "addi %s, %s, %d\n", name, lname, atoi(rname));
 		else fprintf(fd3, "add %s, %s, %s\n", name, lname, rname);
 	}
 	else if(*root->name == '-'){
-		if(is_number(lname) && is_number(rname))
+		if(atoi(lname) && atoi(rname))
 			fprintf(fd3, "li %s, %d\n", name, atoi(lname) - atoi(rname));
-		else if(is_number(lname))
+		else if(atoi(lname))
 			fprintf(fd3, "subi %s, %s, %d\n", name, rname, atoi(lname)); // REVERSED
-		else if(is_number(rname))
+		else if(atoi(rname))
 			fprintf(fd3, "subi %s, %s, %d\n", name,  lname, atoi(rname));
 		else fprintf(fd3, "sub %s, %s, %s\n", name, lname, rname);
 	}
 	else if(*root->name == '*'){
-		if(is_number(lname) && is_number(rname))
+		if(atoi(lname) && atoi(rname))
 			fprintf(fd3, "li %s, %d\n", name, atoi(lname) * atoi(rname));
-		else if(is_number(lname)){
+		else if(atoi(lname)){
 			fprintf(fd3, "li $t%d %d", reg, atoi(lname));
     			sprintf(name, "$t%d", ++reg);
 			fprintf(fd3, "mul %s, $t%d, %s\n", name, reg-1, rname);
 		}
-		else if(is_number(rname)){
+		else if(atoi(rname)){
 			fprintf(fd3, "li $t%d %d", reg, atoi(rname));
     			sprintf(name, "$t%d", ++reg);
 			fprintf(fd3, "mul %s, %s, $t%d\n", name,  lname, reg-1);
@@ -899,14 +898,14 @@ if(*root->name == '+'){
 		else fprintf(fd3, "mul %s, %s, %s\n", name, lname, rname);
 	}
 	else if(*root->name == '/'){
-		if(is_number(lname) && is_number(rname))
+		if(atoi(lname) && atoi(rname))
 			fprintf(fd3, "li %s, %d\n", name, atoi(lname) / atoi(rname));
-		else if(is_number(lname)){
+		else if(atoi(lname)){
 			fprintf(fd3, "li $t%d %d", reg, atoi(lname));
     			sprintf(name, "$t%d", ++reg);
 			fprintf(fd3, "div %s, $t%d, %s\n", name, reg-1, rname);
 		}
-		else if(is_number(rname)){
+		else if(atoi(rname)){
 			fprintf(fd3, "li $t%d %d", reg, atoi(rname));
     			sprintf(name, "$t%d", ++reg);
 			fprintf(fd3, "div %s, %s, $t%d\n", name,  lname, reg-1);
@@ -914,30 +913,37 @@ if(*root->name == '+'){
 		else fprintf(fd3, "div %s, %s, %s\n", name, lname, rname);
 	}
 	else if(*root->name == '%'){
-		if(is_number(lname) && is_number(rname))
+		if(atoi(lname) && atoi(rname))
 			fprintf(fd3, "li %s, %d\n", name, atoi(lname) % atoi(rname));
-		else if(is_number(lname)){
+		else if(atoi(lname)){
 			fprintf(fd3, "li $t%d %d", reg, atoi(lname));
     			sprintf(name, "$t%d", ++reg);
 			fprintf(fd3, "mod %s, $t%d, %s\n", name, reg-1, rname);
 		}
-		else if(is_number(rname)){
+		else if(atoi(rname)){
 			fprintf(fd3, "li $t%d %d", reg, atoi(rname));
     			sprintf(name, "$t%d", ++reg);
 			fprintf(fd3, "mod %s, %s, $t%d\n", name,  lname, reg-1);
 		}
 		else fprintf(fd3, "mod %s, %s, %s\n", name, lname, rname);
 	}
-	else if(*root->name == '='){
-		if(is_number(lname) && is_number(rname))
+	else if(!strcmp(root->name, "==")){
+		printf("WEEEYYHHH\n\n\n\n\n");
+		if(atoi(lname) && atoi(rname))
 			fprintf(fd3, "li $t%d, %d\n", ++reg, atoi(lname) - atoi(rname));
-		else if(is_number(lname))
+		else if(atoi(lname))
 			fprintf(fd3, "subi $t%d, %s, %d\n", ++reg, rname, atoi(lname));
-		else if(is_number(rname))
+		else if(atoi(rname))
 			fprintf(fd3, "subi $t%d, %s, %d\n", ++reg, lname, atoi(rname));
-		else fprintf(fd3, "sub $t%d, %s, %s\n", ++reg, lname, rname);
-
+		else if(rname[0] == '$' && lname[0] == '$')
+			fprintf(fd3, "sub $t%d, %s, %s\n", ++reg, lname, rname);
+		else if(rname[0] == '$')
+			fprintf(fd3, "subi $t%d, %s, %d\n", ++reg, rname, *lname);
+		else if(lname[0] == '$')
+			fprintf(fd3, "subi $t%d, %s, %d\n", ++reg, lname, *rname);
+		else fprintf(fd3, "li $t%d, %d\n", ++reg, *lname - *rname);
 	}
+	else printf("sucks\n\n\n\n");
 }
 void patchinc(){
 	post_t *temp = postlist;
@@ -981,16 +987,11 @@ bindv *findoff(char *fname, char *name){
 	}
 	return NULL;
 }
-int is_number(char *s){
-	char *end;
-	strtod(s, &end);
-	return *s != '\0' && *end == '\0';
-}
-void normalize_node(asd_t *tmp1, asd_t *tmp2, asd_t *node1, asd_t *node2, char *name1, char *name2){
-	if(node1 == NULL)tmp1=create_node(name1, NULL, NULL);
-	else tmp1=node1;
-	if(node2 == NULL)tmp2=create_node(name2, NULL, NULL);
-	else tmp2=node2;
+void normalize_node(asd_t **tmp1, asd_t **tmp2, asd_t *node1, asd_t *node2, char *name1, char *name2){
+	if(node1 == NULL)*tmp1=create_node(name1, NULL, NULL);
+	else *tmp1=node1;
+	if(node2 == NULL)*tmp2=create_node(name2, NULL, NULL);
+	else *tmp2=node2;
 }
 int main(){
 	fd = fopen("ir.dkk", "w");
