@@ -1,0 +1,30 @@
+    j 
+deez:
+    sw 1, 0(xovlll)
+L1:
+    seq t1, ok, a
+    bne L2, t1, 0
+    sub hello, hello, 1
+    j 
+L2:
+    j 
+main:
+    addi , x0, 1
+    mul t1, stride, 4
+    add index, index, t1
+    mul stride, stride, 5
+    mul t2, stride, 0
+    add index, index, t2
+    mul stride, stride, 2
+    mul index, index, 4
+    lw t, 0(index)
+    sw t3, 0(a)
+    sw 5, 0(a)
+    addi t1, 3, 2
+    addi , x0, 5.000000
+    addi , x0, 5
+    addi , x0, t1
+    addi ra, currinst, 4
+deez:
+    j 
+    addi , x0, 1

@@ -525,7 +525,7 @@ Nonterminals, with rules where they appear
     $@9 (119)
         on left: 120
         on right: 121
-    full_par_func_header (120)
+    full_par_func_header <myhdr> (120)
         on left: 122 123
         on right: 117
     class_func_header_start <node> (121)
@@ -540,7 +540,7 @@ Nonterminals, with rules where they appear
     pass_variabledef <id> (124)
         on left: 129 130
         on right: 127 128
-    nopar_class_func_header (125)
+    nopar_class_func_header <node> (125)
         on left: 131
         on right: 119
     decl_statements (126)

@@ -1,0 +1,90 @@
+deez:
+
+	li $k3, 1
+	sw $k3, ($fp)
+
+L1:
+
+	lw $k1, off=-1($fp)
+	lw $k2, a($fp)
+	seq $t1, $k1, $k2
+
+	li $k2, 0
+	bne $t1, $k2, L2
+
+	lw $k1, off=-1($fp)
+	li $k2, 1
+	sub $k3, $k1, $k2
+	sw $k3, off=-1($fp)
+
+	jal L1
+
+L2:
+
+	jr $ra
+
+
+main:
+
+	li $k3, 1
+	sw $k3, off=4($fp)
+
+	lw $k1, off=4($fp)
+	li $k2, 4
+	mul $t1, $k1, $k2
+
+	lw $k1, off=0($fp)
+	add $k3, $k1, $t1
+	sw $k3, off=0($fp)
+
+	lw $k1, off=4($fp)
+	li $k2, 5
+	mul $k3, $k1, $k2
+	sw $k3, off=4($fp)
+
+	lw $k1, off=4($fp)
+	li $k2, 0
+	mul $t2, $k1, $k2
+
+	lw $k1, off=0($fp)
+	add $k3, $k1, $t2
+	sw $k3, off=0($fp)
+
+	lw $k1, off=4($fp)
+	li $k2, 2
+	mul $k3, $k1, $k2
+	sw $k3, off=4($fp)
+
+	lw $k1, off=0($fp)
+	li $k2, 4
+	mul $k3, $k1, $k2
+	sw $k3, off=0($fp)
+
+
+	lw $t3, off=0($fp)
+
+
+	sw $t3, t3($fp)
+
+	li $k3, 5
+	sw $k3, t3($fp)
+
+	li $k1, 3
+	addi $t1, $k1, 2
+
+	li $k3, 5.000000
+	sw $k3, kostis($fp)
+
+	li $k3, 5
+	sw $k3, ok($fp)
+
+	sw $t1, hello($fp)
+
+	lw $k1, currinst($fp)
+	addi $ra, $k1, 4
+
+	jal deez
+
+
+	li $a0, 1
+

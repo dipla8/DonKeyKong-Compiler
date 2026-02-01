@@ -61,6 +61,7 @@ struct hashnode_s {
 	class_t *cla;
 	union_t *un;
 	func_t *func;
+	int funcsize;
 	int istype;
         int visibility;
 	struct init_vals_t *init;
@@ -120,9 +121,23 @@ typedef struct {
 	char* name;
 }header_t;
 
+typedef struct bind_var{
+	int scope;
+	char *type;
+	char *name;
+	int offset;
+	struct bind_var *next;
+}bindv;
+
+typedef struct bind_func{
+	char *name;
+	struct bind_func *next;
+	bindv *head;
+}bindf;
+
 HASHTBL *hashtbl_create(hash_size size, hash_size (*hashfunc)(const char *));
 void hashtbl_destroy(HASHTBL *hashtbl);
-int hashtbl_insert(HASHTBL *hashtbl, const char *key, char *data, int scope, array_t *arr, int istype, int visibility, init_vals *init);
+int hashtbl_insert(HASHTBL *hashtbl, const char *key, char *data, int scope, array_t *arr, int istype, int visibility, init_vals *init, bindf** list);
 int hashtbl_remove(HASHTBL *hashtbl, const char *key,int scope, array_t *arr);
 void *hashtbl_get(HASHTBL *hashtbl, int scope);
 struct hashnode_s *hashtbl_lookup(HASHTBL *hashtbl, int scope, const char *key, int perm);
@@ -130,4 +145,6 @@ void var_decl(id_list_t *var_list, char* data);
 void var_to_expr(expr_t *expr, char* name);
 void header_decl_check(HASHTBL *hashtbl);
 void print_top(FILE* fd, HASHTBL *hashtbl);
+void print_txt(FILE* fd, HASHTBL *hashtbl);
+int findsize2(struct hashnode_s *n, HASHTBL *hashtbl, int scope);	
 #endif

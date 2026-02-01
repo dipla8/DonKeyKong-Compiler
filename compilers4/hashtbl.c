@@ -76,7 +76,7 @@ void hashtbl_destroy(HASHTBL *hashtbl)
 	free(hashtbl);
 }
 
-int hashtbl_insert(HASHTBL *hashtbl, const char *key, char* data ,int scope, array_t *arr, int istype, int visibility, init_vals *init){
+int hashtbl_insert(HASHTBL *hashtbl, const char *key, char* data ,int scope, array_t *arr, int istype, int visibility, init_vals *init, bindf** list){
 	struct hashnode_s *node;
 	hash_size hash=hashtbl->hashfunc(key)%hashtbl->size;
 
@@ -107,7 +107,6 @@ int hashtbl_insert(HASHTBL *hashtbl, const char *key, char* data ,int scope, arr
 		node->cla = malloc(sizeof(class_t));
 		node->cla->classtb = hashtbl_create(5, NULL);	
 	}
-
 	if(!strcmp(data, "union")){
 		node->un = malloc(sizeof(union_t));
 		node->un->untb = hashtbl_create(4, NULL);	
@@ -116,7 +115,21 @@ int hashtbl_insert(HASHTBL *hashtbl, const char *key, char* data ,int scope, arr
 		node->un = NULL; 
 	if(!strcmp(data, "func")){
 		node->func = malloc(sizeof(func_t));	
-	}
+		node->funcsize = 8;
+		bindf* tmp = malloc(sizeof(bindf));
+		tmp->next = NULL;
+		tmp->head = NULL;
+ 		tmp->name = strdup(key);
+		
+		if (*list == NULL)
+			*list = tmp;
+		else {
+			bindf *next = *list;
+			while (next->next)
+				next = next->next;
+			next->next = tmp;		
+		}
+	}	
 	else
 		node->func = NULL;
 	node->init = init;
@@ -240,14 +253,14 @@ int findsize3(struct hashnode_s *n, HASHTBL *hashtbl, int scope){
 }
 void print_top(FILE* fd, HASHTBL *hashtbl){
 	fprintf(fd, ".data\n");
+	//fprintf(fd, "\tindex: .space 4\n");
+	//fprintf(fd, "\tstride: .space 4\n");
 	hash_size n;
 	struct hashnode_s *node, *oldnode;	
 	for(n=0; n<hashtbl->size; ++n) {
 		node=hashtbl->nodes[n];
 		while(node) {
 			if(node->scope == 0 && strcmp(node->data, "func")) {
-				printf("\t\t\t\t\tHASHTBL_GET():\tSCOPE = %d, KEY = %s,  \tDATA = %s\n", 0, node->key, (char*)node->data);
-				printf("init is %p\n", node->init);
 				if(node->init == NULL)
 					fprintf(fd, "\t%s: .space %d\n", node->key, findsize2(node, hashtbl, 0));
 				else{
@@ -284,9 +297,34 @@ void print_top(FILE* fd, HASHTBL *hashtbl){
 	for(n=0; n<hashtbl->size; ++n) {
 		node=hashtbl->nodes[n];
 		while(node) {
-			if(node->scope == 0 && !strcmp(node->data, "func"))
+			if(node->scope == 0 && !strcmp(node->data, "func") && strcmp(node->key, "main"))
 				fprintf(fd, ", %s",node->key);
 			node = node->next;
+		}
+	}
+	fprintf(fd, "\n");
+}
+void print_txt(FILE* fd, HASHTBL *hashtbl){
+	hash_size n;
+	struct hashnode_s *node, *oldnode;
+	for(n=0; n<hashtbl->size; ++n) {
+		node=hashtbl->nodes[n];
+		while(node) {
+			if(!strcmp(node->data, "func")){
+				fprintf(fd, "%s:\n", node->key);
+				fprintf(fd, "\taddi $sp, $sp, -%d\n", node->funcsize);
+				fprintf(fd, "\tsw $ra, %d($sp)\n", node->funcsize-4);
+				fprintf(fd, "\tsw $fp, %d($sp)\n", node->funcsize-8);
+				fprintf(fd, "\taddi $fp, $sp, %d\n", node->funcsize);
+				fprintf(fd, "\n\trest goes here\n\n");
+				fprintf(fd, "\tlw $ra, %d($sp)\n", node->funcsize-4);
+				fprintf(fd, "\tlw $fp, %d($sp)\n", node->funcsize-8);
+				fprintf(fd, "\taddi $sp, $sp, %d\n", node->funcsize);
+				fprintf(fd, "\tj $ra\n");
+				
+			}
+			oldnode = node;
+			node=node->next;
 		}
 	}
 }

@@ -1,20 +1,32 @@
-j,	,	,	L-main
-
-L-deez:
+deez:
+sw,	1,	,	off=4fp
+=,	1,	,	$a2
 L1:
-==,	ok,	a,	t1
-bne,	t1,	0,	L2
--,	hello,	1,	hello
-j,	,	,	L1
+bne,	==,	0,	L2
+-,	$a2,	1,	$a2
+jal,	,	,	L1
 L2:
-j,	,	,	ra
+jr,	,	,	$ra
 
-L-main:
-+,	3,	2,	t1
-=,	5.000000,	,	kostis
-=,	5,	,	ok
-=,	t1,	,	hello
+main:
+=,	1,	,	off=4
+*,	off=4,	4,	$t1
++,	off=0,	$t1,	off=0
+*,	off=4,	5,	off=4
+*,	off=4,	0,	$t2
++,	off=0,	$t2,	off=0
+*,	off=4,	2,	off=4
+*,	off=0,	4,	off=0
+
+lw,	t,	off=0,	$t3
+
+=,	off=44fp,	,	off=44fp
+sw,	5,	,	off=44fp
+=,	5.000000,	,	$a0
+=,	5,	,	$a1
+=,	+,	,	$a2
 +,	currinst,	4,	ra
-j,	,	,	L-deez:
-+,	0,	1,	t1
-=,	t1,	,	a0
+jal,	,	,	deez
+sw,	5,	,	off=44fp
+
+=,	1,	,	$a0
