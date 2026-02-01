@@ -3,6 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include "defines.h"
 #include "dkk.tab.h"
 
@@ -17,7 +18,7 @@ void yyerror(const char *s);
 void patchinc();
 int findsize(struct hashnode_s *n);
 bindv *findoff(char *fname, char *name);
-void print_assembly(char *name, char* lname, char* rname, const asd_t *root, int reg);
+void print_assembly(char *name, char* lname, char* rname, const asd_t *root);
 void normalize_node(asd_t **tmp1, asd_t **tmp2, asd_t *node1, asd_t *node2, char *name1, char *name2);
 int scope = 0;
 int dim_count = 0;
@@ -29,7 +30,9 @@ id_list_t *deflist = NULL;	// necessary for int a,b=a;
 struct hashnode_s *currclass = NULL;
 int stride= 1;
 int reg = 0;
+int freg = 0;
 int reg2 = 0;
+int freg2 = 0;
 int label_count = 0;
 int noprint = 0;
 int fpoff = 0;
@@ -233,7 +236,7 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 				if($1 == 0) $$.node = create_node("+", tmp1, NULL);
 				else $$.node = create_node("-", tmp1, NULL);
 			   }
-	| SIZEOP expression {$$.type = T_INT; $$.val.ival = 0; asd_t *tmp1; normalize_node(&tmp1, NULL, $2.node, NULL, $2.name, NULL); $$.node = create_node("sizeof", tmp1, NULL);}
+	| SIZEOP expression {$$.type = T_INT; $$.val.ival = 0;char *buf = malloc(10); sprintf(buf, "%d", findsize2($2.n, currtb, scope)); $$.node = create_node(buf, NULL, NULL);}
 	| INCDEC variable {$$ = $2; asd_t *node = malloc(sizeof(asd_t)); node->name = "1"; if($1 == 0) $$.node = create_node("+", $2.node, node);
 				      	else $$.node = create_node("-", $2.node, node);}
 	| variable INCDEC {$$ = $1; post_t *temp = malloc(sizeof(post_t));if($1.node != NULL && $1.node->name != NULL) temp->name = $1.node->name; else temp->name = strdup($1.name); temp->sign = $2; temp->next = postlist; postlist = temp;}
@@ -247,13 +250,61 @@ expression : expression OROP expression { if (($1.type == T_INT) && ($3.type == 
 							par_list_t *p1 = n->func->node;
 							expr_list_t *p2 = $3;
 							int i = 0;
+							int j = 0;
+							char *k;
+							char tmp1[15];
 							while(p1!=NULL && p2!=NULL){
 								if(strcmp(p1->type,p2->exp->n->data))
 									yyerror("Parameter type mismatch.");
 								if(p2->exp->name != NULL){
-								fprintf(fd, "=,\t%s,\t,\t$a%d\n", p2->exp->name, i); if(p2->exp->name[0] != '$') fprintf(fd3, "li $a%d, %s\n", i, p2->exp->name); else if (p2->exp->name[0] == '$' || p2->exp->name[0] == 't' ) fprintf(fd3, "mv $a%d, %s\n", i, p2->exp->name); else fprintf(fd3, "li $a%d, %s\n", i, p2->exp->name);}
-								p1=p1->next; p2=p2->next;
+								if(!strcmp(p1->type, "float"))
+									fprintf(fd, "=,\t%s,\t,\t$fa%d\n", p2->exp->name, j);
+								else
+									fprintf(fd, "=,\t%s,\t,\t$a%d\n", p2->exp->name, i-j);
+								if(p2->exp->name[0] != '$'){
+									if(atoi(p2->exp->name)){
+										if(strstr(p2->exp->name, ".") != NULL){
+											fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)strtof(p2->exp->name, NULL));
+											fprintf(fd3, "fmv.w.x $fa%d, $t%d\n", j, reg2);
+										}
+										else fprintf(fd3, "li $a%d, %s\n", i-j, p2->exp->name);
+									}
+									else{
+										strcpy(tmp1, p2->exp->name);
+										k = strstr(tmp1 , "fp");
+										if(k == NULL) k = strstr(tmp1, "gp");
+										if(k != NULL)*k = '\0';
+										fprintf(fd3, "addi $t%d, %s, %s\n", ++reg2, &p2->exp->name[k-tmp1], &tmp1[4]);
+										if(p2->exp->name[0] == '&'){
+											fprintf(fd3, "mv $a%d, $t%d\n", i-j, reg2);
+										}
+										else{
+											if(!strcmp(p1->type, "float")){
+												fprintf(fd3, "lw $f%d, 0($t%d)\n", ++freg2, reg2);
+												fprintf(fd3, "mv $fa%d, $f%d\n", j, freg2);
+											}
+											else 
+												fprintf(fd3, "lw $t%d, 0($t%d)\n", ++reg2, reg2);
+												fprintf(fd3, "mv $a%d, $t%d\n", i-j, reg2);
+										}
+									}
+								}
+								else if (p2->exp->name[0] == '$' || p2->exp->name[0] == 't' ){
+									if(!strcmp(p1->type, "float"))
+										fprintf(fd3, "mv $fa%d, %s\n", j, p2->exp->name);
+									else 
+										fprintf(fd3, "mv $a%d, %s\n", i-j, p2->exp->name);
+								}
+								else{
+									if(!strcmp(p1->type, "float"))
+										fprintf(fd3, "li $fa%d, %s\n", j, p2->exp->name);
+									else
+									fprintf(fd3, "li $a%d, %s\n", i-j, p2->exp->name);
+								}
+								}
 								i++;
+								j = j + !strcmp(p1->type, "float")?1:0;
+								p1=p1->next; p2=p2->next;
 							}
 							if(p1 != NULL || p2!=NULL)
 								yyerror("Parameter cardinality mismatch.");
@@ -398,15 +449,21 @@ variable : variable LBRACK general_expression RBRACK {
 					tmp1 = tmp1->next;
 				if(!strcmp(tmp1->name, currfunc->key) && currfunc->func != NULL && currfunc->func->node != NULL){
 					tmp2 = currfunc->func->node;
-					int i;
+					int i = 0;
+					int j = 0;
 					char tmp[15];
-					for(i = 0; tmp2 != NULL; i++){
+					while(tmp2 != NULL){
+						i++;
+						j = j + !strcmp(tmp2->type, "float")?1:0;
 						if(!strcmp(tmp2->name, $2))
 							break;
 						tmp2 = tmp2->next;
 					}
 					if(tmp2 != NULL){
-						sprintf(tmp, "$a%d", i);
+						printf("YEAHHH %s\n\n", tmp2->type);
+						if(!strcmp(tmp2->type, "float"))
+							sprintf(tmp, "$fa%d", j-1);
+						else sprintf(tmp, "$a%d", i-j);
 						$$.name = strdup(tmp);
 					}
 				}
@@ -430,8 +487,7 @@ variable : variable LBRACK general_expression RBRACK {
 			char *str = malloc(20);
 			bindv *temp = findoff(currfunc->key, $2);
 			if(temp!=NULL){
-				sprintf(str, "off=%d%s", temp->offset, temp->scope?"fp":"gp");
-				printf("%s\n\n\n", str);
+				sprintf(str, "off=%d%s", temp->offset, temp->scope?"gp":"fp");
 				$$.node = create_node(str, NULL, NULL);
 			}
 		}
@@ -558,7 +614,7 @@ init_value : /*expression {$$ = 1;}*/ constant {init_vals *p = malloc(sizeof(ini
         | STRING {$$->string = $1; $$->size=strlen($1); $$->type = T_CHAR;};
 init_values : init_values COMMA init_value {if ($1->type !=$3->type) yyerror("Initialization types dont match."); init_vals *tmp = $1; while(tmp->next) tmp = tmp->next; tmp->next = $3; $$ = $1; $$->size = $1->size + $3->size;}
                 | init_value {$$= $1;}; 
-func_declaration : short_func_declaration | full_func_declaration {fprintf(fd,"jr,\t,\t,\t$ra\n"); fprintf(fd3, "jr $ra\n"); currfunc = NULL;};
+func_declaration : short_func_declaration | full_func_declaration {fprintf(fd,"jr,\t,\t,\t$ra\n"); currfunc = NULL;};
 full_func_declaration : full_par_func_header {scope++; currfunc = hashtbl_lookup(currtb, scope, $1.name, 0); fpoff = 0;} LBRACE decl_statements RBRACE {currfunc = NULL; fpoff = 0; currclass = NULL;hashtbl_get(currtb, scope); scope--;}
 		| nopar_class_func_header {scope++; currfunc = $1; fpoff = 0;} LBRACE decl_statements RBRACE{currfunc = NULL; fpoff = 0; hashtbl_get(currtb, scope);scope--;}
 		| nopar_func_header {scope++; currfunc = hashtbl_lookup(currtb, scope, $1.name, 0); fpoff = 0;} LBRACE decl_statements RBRACE{currfunc = NULL; fpoff = 0; hashtbl_get(currtb, scope);scope--;};
@@ -680,7 +736,7 @@ decl_statements : declarations statements
 declarations : declarations decltype typename variabledefs SEMI {int old_scope = scope; if($2) scope = 0; var_decl($4, $3); scope = old_scope;}
 		| decltype typename variabledefs SEMI{ int old_scope = scope; if($1) scope = 0; var_decl($3, $2); scope = old_scope;};
 decltype : STATIC {$$ = 1;} | {$$ = 0;};
-statements : statements statement {reg = 0; reg2 = 0;} | statement {reg = 0; reg2= 0;};
+statements : statements statement {reg = 0; freg = 0; reg2 = 0; freg2= 0;} | statement {reg = 0; freg = 0; reg2= 0; freg2 = 0;};
 statement : expression_statement
 	| if_statement
 	| while_statement
@@ -820,15 +876,16 @@ char *print_ir(const asd_t *root) {
 	fprintf(fd3, "\n");	
     char *name = malloc(sizeof(char) * 10);
     sprintf(name, "$t%d", reg);
-	print_assembly(name, lname, rname, root, reg);
+	print_assembly(name, lname, rname, root);
 	lastname = lname;
 	return NULL;
     }
     else if(lname && !rname) {
         fprintf(fd, "%s,\t%s,\t,\t%s\n", root->name, lname, lname);
     char *name = malloc(sizeof(char) * 10);
-    sprintf(name, "$t%d", reg);
-	print_assembly(name, lname, rname, root, reg);
+	if(strstr(lname, ".") != NULL) sprintf(name, "$f%d", freg);
+   	else sprintf(name, "$t%d", reg);
+	print_assembly(name, lname, rname, root);
 	lastname = lname;
 	return NULL;
     }
@@ -841,14 +898,28 @@ char *print_ir(const asd_t *root) {
 	if(i == NULL) i = strstr(temp, "gp");
 	if(i != NULL)*i = '\0';
 	if(lname[0] != '$'){
-		fprintf(fd3, "addi $t%d, %s, %s\n", ++reg, &lname[i-temp], &temp[4]);
-		fprintf(fd3, "sw %s, $t%d\n", rname, reg);
+		fprintf(fd3, "addi $t%d, %s, %s\n", ++reg2, &lname[i-temp], &temp[4]);
+		if((atoi(rname) || rname[0] != '0') && strstr(rname, ".") != NULL){
+			fprintf(fd3, "li $t%d, %s\n", ++reg2, rname);
+			fprintf(fd3, "fmv.w.x $f%d, $t%d\n", ++freg2, reg2);
+			fprintf(fd3, "fsw $f%d, 0($t%d)\n", freg2, reg2-1);
+		}
+		else if(rname[0] == '$' && rname[1] == 'f'){
+			fprintf(fd3, "fsw %s, 0($t%d)\n", rname, reg2);
+		}
+		else if(rname[0] == '$' && rname[1] != 'f'){
+			fprintf(fd3, "fcvt.s.w $f%d, %s\n", ++freg2, rname);
+			fprintf(fd3, "fsw $f%d, 0($t%d)\n", freg2, reg2);
+		}
+		else{
+			fprintf(fd3, "sw %s, 0($t%d)\n", rname, reg2);
+		}
 	}
-	else if(rname[0] == 't' || rname[0] == '$') fprintf(fd3, "mv %s, %s\n", lname, rname);
+	else if(rname[0] == '$' || lname[0] == '$'){ if((rname[1] == 't' || rname[1] == 'a') && (lname[1] == 't' || lname[1] == 'a')) fprintf(fd3, "mv %s, %s\n", lname, rname); else if(lname[1] == 'f' && rname[1] == 'f') fprintf(fd3, "f.mv %s, %s\n", lname, rname); else if(lname[1] == 'f'){fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)strtof(rname, NULL)); fprintf(fd3, "fmv.w.x $f%d, $t%d\n", ++freg2, reg2);}} 
 	else fprintf(fd3, "li %s, %s\n", lname, rname);
     char *name = malloc(sizeof(char) * 10);
     sprintf(name, "$t%d", reg);
-	print_assembly(name, lname, rname, root, reg);
+	print_assembly(name, lname, rname, root);
 	lastname = lname;
         return NULL;
     }
@@ -859,91 +930,193 @@ char *print_ir(const asd_t *root) {
     char *name = malloc(sizeof(char) * 10);
     sprintf(name, "$t%d", reg);
     fprintf(fd, "%s,\t%s,\t%s,\t%s\n", root->name, lname, rname, name);
-	print_assembly(name, lname, rname, root, reg);
+	print_assembly(name, lname, rname, root);
     lastname = name;
     return name;
 }
-void print_assembly(char *name, char* lname, char* rname, const asd_t *root, int reg){
+void print_assembly(char *name, char* lname, char* rname, const asd_t *root){
 if(*root->name == '+'){
-		if(atoi(lname) && atoi(rname))
-			fprintf(fd3, "li %s, %d\n", name, atoi(lname) + atoi(rname));
-		else if(atoi(lname))
-			fprintf(fd3, "addi %s, %s, %d\n", name, rname, atoi(lname)); // REVERSED
-		else if(atoi(rname))
-			fprintf(fd3, "addi %s, %s, %d\n", name, lname, atoi(rname));
-		else fprintf(fd3, "add %s, %s, %s\n", name, lname, rname);
+		if((lname[0]=='0' && rname[0] == '0') ||(atoi(lname) && atoi(rname))){
+			if(strstr(rname, ".")!=NULL || strstr(lname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)(strtof(lname, NULL) + strtof(rname, NULL)));
+				fprintf(fd3, "fmv.w.x %s, $t%d\n", name, reg2);
+			}
+			else fprintf(fd3, "li %s, %d\n", name, atoi(lname) + atoi(rname));
+		}
+		else if(atoi(lname) || lname[0] == '0'){
+			if(strstr(lname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)strtof(lname, NULL));
+				fprintf(fd3, "fmv.w.x $f%d, $t%d\n", ++freg2, reg2);
+				fprintf(fd3, "f.add.s %s, %s, $f%d\n", name, rname, freg2);
+			}
+			else fprintf(fd3, "addi %s, %s, %d\n", name, rname, atoi(lname)); // REVERSED
+		}
+		else if(atoi(rname) || rname[0] == '0'){
+			if(strstr(rname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)strtof(rname, NULL));
+				fprintf(fd3, "fmv.w.x $f%d, $t%d\n", ++freg2, reg2);
+				fprintf(fd3, "f.add.s %s, %s, $f%d\n", name, lname, freg2);
+			}
+			else fprintf(fd3, "addi %s, %s, %d\n", name, lname, atoi(rname));
+		}
+		else {
+			if(name[1] = 'f') fprintf(fd3, "f.add.s %s, %s, %s\n",name, lname, rname);
+			else fprintf(fd3, "add %s, %s, %s\n", name, lname, rname);
+		}
 	}
 	else if(*root->name == '-'){
-		if(atoi(lname) && atoi(rname))
-			fprintf(fd3, "li %s, %d\n", name, atoi(lname) - atoi(rname));
-		else if(atoi(lname))
-			fprintf(fd3, "subi %s, %s, %d\n", name, rname, atoi(lname)); // REVERSED
-		else if(atoi(rname))
+		if((lname[0]=='0' && rname[0] == '0') || (atoi(lname) && atoi(rname))){
+			if(strstr(rname, ".")!=NULL || strstr(lname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)(strtof(lname, NULL) - strtof(rname, NULL)));
+				fprintf(fd3, "fmv.w.x %s, $t%d\n", name, reg2);
+			}
+			else fprintf(fd3, "li %s, %d\n", name, atoi(lname) - atoi(rname));
+		}
+		else if(atoi(lname) || lname[0] == '0'){
+			if(strstr(lname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)strtof(lname, NULL));
+				fprintf(fd3, "fmv.w.x $f%d, $t%d\n", ++freg2, reg2);
+				fprintf(fd3, "f.sub.s %s, $f%d, %s\n", name, freg2, rname);
+			}
+			fprintf(fd3, "li $t%d, %d", ++reg2, atoi(lname));
+			fprintf(fd3, "sub %s, $t%d, %s\n", name, reg2, rname);
+		}
+		else if(atoi(rname) || rname[0] == '0'){
+			if(strstr(rname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)strtof(rname, NULL));
+				fprintf(fd3, "fmv.w.x $f%d, $t%d\n", ++freg2, reg2);
+				fprintf(fd3, "f.sub.s %s, %s, $f%d\n", name, lname, freg2);
+			}
 			fprintf(fd3, "subi %s, %s, %d\n", name,  lname, atoi(rname));
-		else fprintf(fd3, "sub %s, %s, %s\n", name, lname, rname);
+		}
+		else{
+			if(name[1] == 'f') fprintf(fd3, "f.sub.s %s, %s, %s\n", name, lname, rname);
+			else fprintf(fd3, "sub %s, %s, %s\n", name, lname, rname);
+		}
 	}
 	else if(*root->name == '*'){
-		if(atoi(lname) && atoi(rname))
+		if((lname[0]=='0' && rname[0] == '0') || (atoi(lname) && atoi(rname))){
+			if(strstr(rname, ".")!=NULL || strstr(lname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)(strtof(lname, NULL) * strtof(rname, NULL)));
+				fprintf(fd3, "fmv.w.x %s, $t%d\n", name, reg2);
+			}
 			fprintf(fd3, "li %s, %d\n", name, atoi(lname) * atoi(rname));
-		else if(atoi(lname)){
-			fprintf(fd3, "li $t%d %d", reg, atoi(lname));
-    			sprintf(name, "$t%d", ++reg);
-			fprintf(fd3, "mul %s, $t%d, %s\n", name, reg-1, rname);
 		}
-		else if(atoi(rname)){
-			fprintf(fd3, "li $t%d %d", reg, atoi(rname));
-    			sprintf(name, "$t%d", ++reg);
-			fprintf(fd3, "mul %s, %s, $t%d\n", name,  lname, reg-1);
+		else if(atoi(lname) || lname[0] == '0'){
+			if(strstr(lname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)strtof(lname, NULL));
+				fprintf(fd3, "fmv.w.x $f%d, $t%d\n", ++freg2, reg2);
+				fprintf(fd3, "f.mul.s %s, $f%d, %s\n", name, freg2, rname);
+			}
+			fprintf(fd3, "li $t%d %d", reg2, atoi(lname));
+    			sprintf(name, "$t%d", ++reg2);
+			fprintf(fd3, "mul %s, $t%d, %s\n", name, reg2-1, rname);
 		}
-		else fprintf(fd3, "mul %s, %s, %s\n", name, lname, rname);
+		else if(atoi(rname) || rname[0] == '0'){
+			if(strstr(rname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)strtof(rname, NULL));
+				fprintf(fd3, "fmv.w.x $f%d, $t%d\n", ++freg2, reg2);
+				fprintf(fd3, "f.mul.s %s, %s, $f%d\n", name, lname, freg2);
+			}
+			fprintf(fd3, "li $t%d %d", reg2, atoi(rname));
+    			sprintf(name, "$t%d", ++reg2);
+			fprintf(fd3, "mul %s, %s, $t%d\n", name,  lname, reg2-1);
+		}
+		else {
+			if(name[1] == 'f') fprintf(fd3, "f.mul.s %s, %s, %s\n", name, lname, rname);
+			else fprintf(fd3, "mul %s, %s, %s\n", name, lname, rname);
+		}
 	}
 	else if(*root->name == '/'){
-		if(atoi(lname) && atoi(rname))
+		if((lname[0]=='0' && rname[0] == '0') || (atoi(lname) && atoi(rname))){
+			if(strstr(rname, ".")!=NULL || strstr(lname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)(strtof(lname, NULL) / strtof(rname, NULL)));
+				fprintf(fd3, "fmv.w.x %s, $t%d\n", name, reg2);
+			}
 			fprintf(fd3, "li %s, %d\n", name, atoi(lname) / atoi(rname));
-		else if(atoi(lname)){
-			fprintf(fd3, "li $t%d %d", reg, atoi(lname));
-    			sprintf(name, "$t%d", ++reg);
-			fprintf(fd3, "div %s, $t%d, %s\n", name, reg-1, rname);
 		}
-		else if(atoi(rname)){
-			fprintf(fd3, "li $t%d %d", reg, atoi(rname));
-    			sprintf(name, "$t%d", ++reg);
-			fprintf(fd3, "div %s, %s, $t%d\n", name,  lname, reg-1);
+		else if(atoi(lname) || lname[0] == '0'){
+			if(strstr(lname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)strtof(lname, NULL));
+				fprintf(fd3, "fmv.w.x $f%d, $t%d\n", ++freg2, reg2);
+				fprintf(fd3, "f.div.s %s, $f%d, %s\n", name, freg2, rname);
+			}
+			fprintf(fd3, "li $t%d %d", reg2, atoi(lname));
+    			sprintf(name, "$t%d", ++reg2);
+			fprintf(fd3, "div %s, $t%d, %s\n", name, reg2-1, rname);
 		}
-		else fprintf(fd3, "div %s, %s, %s\n", name, lname, rname);
+		else if(atoi(rname) || rname[0] == '0'){
+			if(strstr(rname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)strtof(rname, NULL));
+				fprintf(fd3, "fmv.w.x $f%d, $t%d\n", ++freg2, reg2);
+				fprintf(fd3, "f.div.s %s, %s, $f%d\n", name, lname, freg2);
+			}
+			fprintf(fd3, "li $t%d %d", reg2, atoi(rname));
+    			sprintf(name, "$t%d", ++reg2);
+			fprintf(fd3, "div %s, %s, $t%d\n", name,  lname, reg2-1);
+		}
+		else{
+			if(name[1] == 'f') fprintf(fd3, "f.div.s %s, %s, %s\n", name, lname, rname);
+			else fprintf(fd3, "div %s, %s, %s\n", name, lname, rname);
+		}
 	}
 	else if(*root->name == '%'){
-		if(atoi(lname) && atoi(rname))
+		if((lname[0]=='0' && rname[0] == '0') || (atoi(lname) && atoi(rname))){
 			fprintf(fd3, "li %s, %d\n", name, atoi(lname) % atoi(rname));
-		else if(atoi(lname)){
-			fprintf(fd3, "li $t%d %d", reg, atoi(lname));
-    			sprintf(name, "$t%d", ++reg);
-			fprintf(fd3, "mod %s, $t%d, %s\n", name, reg-1, rname);
 		}
-		else if(atoi(rname)){
-			fprintf(fd3, "li $t%d %d", reg, atoi(rname));
-    			sprintf(name, "$t%d", ++reg);
-			fprintf(fd3, "mod %s, %s, $t%d\n", name,  lname, reg-1);
+		else if(atoi(lname) || lname[0] == '0'){
+			fprintf(fd3, "li $t%d %d", reg2, atoi(lname));
+    			sprintf(name, "$t%d", ++reg2);
+			fprintf(fd3, "rem %s, $t%d, %s\n", name, reg2-1, rname);
 		}
-		else fprintf(fd3, "mod %s, %s, %s\n", name, lname, rname);
+		else if(atoi(rname) || rname[0] == '0'){
+			fprintf(fd3, "li $t%d %d", reg2, atoi(rname));
+    			sprintf(name, "$t%d", ++reg2);
+			fprintf(fd3, "rem %s, %s, $t%d\n", name,  lname, reg2-1);
+		}
+		else fprintf(fd3, "rem %s, %s, %s\n", name, lname, rname);
 	}
 	else if(!strcmp(root->name, "==")){
-		printf("WEEEYYHHH\n\n\n\n\n");
-		if(atoi(lname) && atoi(rname))
-			fprintf(fd3, "li $t%d, %d\n", ++reg, atoi(lname) - atoi(rname));
-		else if(atoi(lname))
-			fprintf(fd3, "subi $t%d, %s, %d\n", ++reg, rname, atoi(lname));
-		else if(atoi(rname))
-			fprintf(fd3, "subi $t%d, %s, %d\n", ++reg, lname, atoi(rname));
-		else if(rname[0] == '$' && lname[0] == '$')
-			fprintf(fd3, "sub $t%d, %s, %s\n", ++reg, lname, rname);
+		if((lname[0]=='0' && rname[0] == '0') || (atoi(lname) && atoi(rname))){
+			if(strstr(rname, ".")!=NULL || strstr(lname, ".")!=NULL)
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)(strtof(lname, NULL) - strtof(rname, NULL)));
+			else fprintf(fd3, "li $t%d, %d\n", ++reg2, atoi(lname) - atoi(rname));
+		}
+		else if(atoi(lname) || lname[0] == '0'){
+			if(strstr(lname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)strtof(lname, NULL));
+				fprintf(fd3, "fmv.w.x $f%d, $t%d\n", ++freg2, reg2);
+				if(rname[0] == '$'){
+					fprintf(fd3, "f.sub.s $f%d, $f%d, %s\n", ++freg2, freg2, rname);
+					fprintf(fd3, "fcvt.w.s %s, $f%d\n", name, freg2);
+				}
+			}
+			fprintf(fd3, "subi $t%d, %s, %d\n", ++reg2, rname, atoi(lname));
+		}
+		else if(atoi(rname) || rname[0] == '0'){
+			if(strstr(rname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)strtof(rname, NULL));
+				fprintf(fd3, "fmv.w.x $f%d, $t%d\n", ++freg2, reg2);
+				if(rname[0] == '$'){
+					fprintf(fd3, "f.sub.s $f%d, $f%d, %s\n", ++freg2, freg2, lname);
+					fprintf(fd3, "fcvt.w.s %s, $f%d\n", name, freg2);
+				}
+			}
+			fprintf(fd3, "subi $t%d, %s, %d\n", ++reg2, lname, atoi(rname));
+		}
+		else if(rname[0] == '$' && lname[0] == '$'){
+			if(rname[1] == 'f' && lname[1] == 'f')
+				fprintf(fd3, "f.sub.s $f%d, %s, %s\n", ++freg2, lname, rname);
+			else fprintf(fd3, "sub $t%d, %s, %s\n", ++reg2, lname, rname);
+		}
 		else if(rname[0] == '$')
-			fprintf(fd3, "subi $t%d, %s, %d\n", ++reg, rname, *lname);
+			fprintf(fd3, "subi $t%d, %s, %d\n", ++reg2, rname, *lname);
 		else if(lname[0] == '$')
-			fprintf(fd3, "subi $t%d, %s, %d\n", ++reg, lname, *rname);
-		else fprintf(fd3, "li $t%d, %d\n", ++reg, *lname - *rname);
+			fprintf(fd3, "subi $t%d, %s, %d\n", ++reg2, lname, *rname);
+		else fprintf(fd3, "li $t%d, %d\n", ++reg2, *lname - *rname);
+		fprintf(fd3, "xor $t%d, $t%d, $0\n", reg2, reg2);
+		fprintf(fd3, "slt $t%d, $t%d, $0\n", reg2, reg2);
 	}
-	else printf("sucks\n\n\n\n");
 }
 void patchinc(){
 	post_t *temp = postlist;
@@ -971,7 +1144,6 @@ int findsize(struct hashnode_s *n){
 bindv *findoff(char *fname, char *name){
 	bindf *temp = currlist;
 	bindv *temp2;
-	printf("\n\n%d\n", temp == NULL);
 	while(temp){
 		printf("fname = %s\n", temp->name);
 		if(!strcmp(temp->name, fname)){
