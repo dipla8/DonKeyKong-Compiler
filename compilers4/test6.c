@@ -1,8 +1,10 @@
-typedef int hello[100][1][1];
-typedef hello what[10][1][1];
-what vlakas;
+typedef int hello[10][1];
+typedef hello what[5][1];
+//comment
+/*comment*/
 int main(){
 	int k;
-	vlakas[5][0][0][0][0][0] = k;
+	what something;
+	something[5][0][0][0] = k;
 	return 0;
 }

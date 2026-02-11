@@ -121,7 +121,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 64 "dkk.y"
+#line 69 "dkk.y"
  
        	int ival;
 	float fval;

@@ -73,6 +73,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include "defines.h"
 #include "dkk.tab.h"
 
@@ -83,13 +84,14 @@ static void print_tree_rec(const asd_t *node, const char *prefix, int is_left);
 asd_t *create_node(const char *s, asd_t *lleaf, asd_t *rleaf);
 char *print_ir(const asd_t *root);
 void print_tree(const asd_t *root);
+void print_list();
 void yyerror(const char *s);
 void patchinc();
 int findsize(struct hashnode_s *n);
 bindv *findoff(char *fname, char *name);
-int is_number(char *s);
-void print_assembly(char *name, char* lname, char* rname, const asd_t *root, int reg);
-void normalize_node(asd_t *tmp1, asd_t *tmp2, asd_t *node1, asd_t *node2, char *name1, char *name2);
+void print_assembly(char *name, char* lname, char* rname, const asd_t *root);
+void normalize_node(asd_t **tmp1, asd_t **tmp2, asd_t *node1, asd_t *node2, char *name1, char *name2);
+void inherit(struct hashnode_s *og);
 int scope = 0;
 int dim_count = 0;
 HASHTBL *symtb;
@@ -100,8 +102,11 @@ id_list_t *deflist = NULL;	// necessary for int a,b=a;
 struct hashnode_s *currclass = NULL;
 int stride= 1;
 int reg = 0;
+int freg = 0;
 int reg2 = 0;
+int freg2 = 0;
 int label_count = 0;
+int logical_case = 0;
 int noprint = 0;
 int fpoff = 0;
 char *lastname = NULL;
@@ -111,7 +116,7 @@ FILE *fd3 = NULL;
 bindf* currlist = NULL;
 int gp;
 
-#line 115 "dkk.tab.c"
+#line 120 "dkk.tab.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -685,25 +690,25 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,    96,    96,    97,    97,    98,    99,   100,   101,   102,
-     103,   104,   104,   105,   106,   107,   108,   109,   110,   111,
-     111,   112,   140,   158,   160,   161,   161,   162,   164,   171,
-     178,   186,   196,   207,   218,   224,   237,   238,   240,   241,
-     242,   265,   266,   267,   268,   269,   270,   271,   311,   341,
-     358,   439,   440,   441,   442,   450,   451,   452,   452,   453,
-     454,   455,   456,   457,   457,   458,   459,   459,   460,   460,
-     461,   461,   461,   461,   462,   463,   464,   465,   466,   467,
-     474,   481,   481,   491,   491,   496,   497,   498,   498,   499,
-     500,   501,   501,   511,   520,   520,   521,   528,   536,   536,
-     537,   538,   538,   539,   540,   547,   555,   556,   556,   556,
-     557,   558,   559,   560,   561,   562,   562,   563,   563,   564,
-     564,   565,   565,   566,   596,   654,   655,   656,   657,   665,
-     672,   672,   677,   678,   679,   680,   680,   681,   682,   683,
-     683,   684,   684,   685,   686,   687,   688,   689,   690,   691,
-     692,   693,   694,   695,   696,   697,   698,   699,   699,   699,
-     700,   700,   700,   700,   700,   701,   701,   702,   703,   703,
-     704,   704,   705,   706,   706,   707,   707,   708,   708,   708,
-     709,   709,   710
+       0,   101,   101,   102,   102,   103,   104,   105,   106,   107,
+     108,   109,   109,   110,   111,   112,   113,   114,   115,   116,
+     116,   117,   145,   163,   165,   166,   166,   167,   169,   176,
+     183,   191,   201,   212,   223,   229,   242,   243,   245,   246,
+     247,   318,   319,   320,   321,   322,   323,   324,   364,   413,
+     430,   518,   519,   520,   521,   538,   539,   540,   540,   541,
+     542,   543,   544,   545,   545,   546,   547,   547,   548,   548,
+     549,   549,   549,   549,   550,   551,   552,   553,   554,   555,
+     562,   569,   569,   579,   579,   584,   585,   586,   586,   587,
+     588,   589,   589,   599,   608,   608,   609,   616,   624,   624,
+     625,   626,   626,   627,   628,   635,   643,   644,   644,   644,
+     645,   646,   647,   648,   649,   650,   650,   651,   651,   652,
+     652,   653,   653,   654,   684,   742,   743,   744,   745,   753,
+     760,   760,   765,   766,   767,   768,   768,   769,   770,   771,
+     771,   772,   772,   773,   774,   775,   776,   777,   778,   779,
+     780,   781,   782,   783,   784,   785,   786,   787,   787,   787,
+     788,   788,   788,   788,   788,   789,   789,   790,   791,   791,
+     792,   792,   793,   794,   794,   795,   795,   796,   796,   796,
+     797,   797,   798
 };
 #endif
 
@@ -1557,55 +1562,55 @@ yyreduce:
   switch (yyn)
     {
   case 11: /* $@1: %empty  */
-#line 104 "dkk.y"
+#line 109 "dkk.y"
                                                    {dim_count = 0;}
-#line 1563 "dkk.tab.c"
+#line 1568 "dkk.tab.c"
     break;
 
   case 12: /* typedef_declaration: TYPEDEF typename listspec ID $@1 dims SEMI  */
-#line 104 "dkk.y"
+#line 109 "dkk.y"
                                                                               {hashtbl_insert(symtb, (yyvsp[-3].str), (yyvsp[-5].str) , scope, (yyvsp[-1].arr), 1, currvis, NULL, &currlist);}
-#line 1569 "dkk.tab.c"
+#line 1574 "dkk.tab.c"
     break;
 
   case 13: /* typename: standard_type  */
-#line 105 "dkk.y"
+#line 110 "dkk.y"
                          {(yyval.str) = (yyvsp[0].str);}
-#line 1575 "dkk.tab.c"
+#line 1580 "dkk.tab.c"
     break;
 
   case 14: /* typename: ID  */
-#line 106 "dkk.y"
+#line 111 "dkk.y"
                      {struct hashnode_s *p = hashtbl_lookup(symtb, scope, (yyvsp[0].str), currvis); if(p == NULL || p->istype == 0) yyerror("Type doesn't exist."); {(yyval.str) = p->key;}}
-#line 1581 "dkk.tab.c"
+#line 1586 "dkk.tab.c"
     break;
 
   case 15: /* standard_type: CHAR  */
-#line 107 "dkk.y"
+#line 112 "dkk.y"
                      {(yyval.str)="char";}
-#line 1587 "dkk.tab.c"
+#line 1592 "dkk.tab.c"
     break;
 
   case 16: /* standard_type: INT  */
-#line 108 "dkk.y"
+#line 113 "dkk.y"
                       {(yyval.str)="int";}
-#line 1593 "dkk.tab.c"
+#line 1598 "dkk.tab.c"
     break;
 
   case 17: /* standard_type: FLOAT  */
-#line 109 "dkk.y"
+#line 114 "dkk.y"
                         {(yyval.str)="float";}
-#line 1599 "dkk.tab.c"
+#line 1604 "dkk.tab.c"
     break;
 
   case 18: /* standard_type: VOID  */
-#line 110 "dkk.y"
+#line 115 "dkk.y"
                        {(yyval.str)="void";}
-#line 1605 "dkk.tab.c"
+#line 1610 "dkk.tab.c"
     break;
 
   case 21: /* dims: dims LBRACK ICONST RBRACK  */
-#line 112 "dkk.y"
+#line 117 "dkk.y"
                                  {
 		if (dim_count == MAX_DIMENSIONS) {
 			//ERROR
@@ -1634,11 +1639,11 @@ yyreduce:
 			dim_count++;
 		}
 	}
-#line 1638 "dkk.tab.c"
+#line 1643 "dkk.tab.c"
     break;
 
   case 22: /* dims: dims LBRACK RBRACK  */
-#line 140 "dkk.y"
+#line 145 "dkk.y"
                              {
 		if (dim_count == MAX_DIMENSIONS) {
 			yyerror("Exceeded maximum array dimensions.");
@@ -1657,112 +1662,112 @@ yyreduce:
 			dim_count++;
 		}
 	}
-#line 1661 "dkk.tab.c"
+#line 1666 "dkk.tab.c"
     break;
 
   case 23: /* dims: %empty  */
-#line 158 "dkk.y"
+#line 163 "dkk.y"
       {(yyval.arr) = NULL;}
-#line 1667 "dkk.tab.c"
+#line 1672 "dkk.tab.c"
     break;
 
   case 28: /* expression: expression OROP expression  */
-#line 164 "dkk.y"
+#line 169 "dkk.y"
                                         { if (((yyvsp[-2].myexpr).type == T_INT) && ((yyvsp[0].myexpr).type == T_INT))
    					  	(yyval.myexpr).type = (yyvsp[-2].myexpr).type;
 					  else	yyerror("Wrong expression type.");
 					asd_t *tmp1; asd_t *tmp2;
-					normalize_node(tmp1, tmp2, (yyvsp[-2].myexpr).node, (yyvsp[0].myexpr).node, (yyvsp[-2].myexpr).name, (yyvsp[0].myexpr).name);
+					normalize_node(&tmp1, &tmp2, (yyvsp[-2].myexpr).node, (yyvsp[0].myexpr).node, (yyvsp[-2].myexpr).name, (yyvsp[0].myexpr).name);
 				      	(yyval.myexpr).node = create_node("||", tmp1, tmp2);
 					}
-#line 1679 "dkk.tab.c"
+#line 1684 "dkk.tab.c"
     break;
 
   case 29: /* expression: expression ANDOP expression  */
-#line 171 "dkk.y"
+#line 176 "dkk.y"
                                       { if (((yyvsp[-2].myexpr).type == T_INT) && ((yyvsp[0].myexpr).type == T_INT))
    					  	(yyval.myexpr).type = (yyvsp[-2].myexpr).type;
 					  else yyerror("Wrong expression type.");
 					asd_t *tmp1; asd_t *tmp2;
-					normalize_node(tmp1, tmp2, (yyvsp[-2].myexpr).node, (yyvsp[0].myexpr).node, (yyvsp[-2].myexpr).name, (yyvsp[0].myexpr).name);
+					normalize_node(&tmp1, &tmp2, (yyvsp[-2].myexpr).node, (yyvsp[0].myexpr).node, (yyvsp[-2].myexpr).name, (yyvsp[0].myexpr).name);
 				      	(yyval.myexpr).node = create_node("&&", tmp1, tmp2);
 				      }
-#line 1691 "dkk.tab.c"
+#line 1696 "dkk.tab.c"
     break;
 
   case 30: /* expression: expression EQUOP expression  */
-#line 178 "dkk.y"
+#line 183 "dkk.y"
                                       {if((((yyvsp[-2].myexpr).type == T_INT || (yyvsp[-2].myexpr).type == T_FLOAT) && (((yyvsp[0].myexpr).type == T_INT) ||((yyvsp[0].myexpr).type == T_FLOAT))) || ((yyvsp[-2].myexpr).type == T_CHAR && (yyvsp[0].myexpr).type == T_CHAR))
 						(yyval.myexpr).type = T_INT;
 					else yyerror("Wrong expression type.");
 					asd_t *tmp1; asd_t *tmp2;
-					normalize_node(tmp1, tmp2, (yyvsp[-2].myexpr).node, (yyvsp[0].myexpr).node, (yyvsp[-2].myexpr).name, (yyvsp[0].myexpr).name);
-				      	if((yyvsp[-1].oper) == 0)(yyval.myexpr).node = create_node("==", tmp1, tmp2);
+					normalize_node(&tmp1, &tmp2, (yyvsp[-2].myexpr).node, (yyvsp[0].myexpr).node, (yyvsp[-2].myexpr).name, (yyvsp[0].myexpr).name);
+					if((yyvsp[-1].oper) == 0)(yyval.myexpr).node = create_node("==", tmp1, tmp2);
 				      	else (yyval.myexpr).node = create_node("!=", tmp1, tmp2);
 				      }
-#line 1704 "dkk.tab.c"
+#line 1709 "dkk.tab.c"
     break;
 
   case 31: /* expression: expression RELOP expression  */
-#line 186 "dkk.y"
+#line 191 "dkk.y"
                                       {if((((yyvsp[-2].myexpr).type == T_INT || (yyvsp[-2].myexpr).type == T_FLOAT) && (((yyvsp[0].myexpr).type == T_INT) ||((yyvsp[0].myexpr).type == T_FLOAT))) || ((yyvsp[-2].myexpr).type == T_CHAR && (yyvsp[0].myexpr).type == T_CHAR))
 						(yyval.myexpr).type = T_INT;
 					else yyerror("Wrong expression type.");
 					asd_t *tmp1; asd_t *tmp2;
-					normalize_node(tmp1, tmp2, (yyvsp[-2].myexpr).node, (yyvsp[0].myexpr).node, (yyvsp[-2].myexpr).name, (yyvsp[0].myexpr).name);
+					normalize_node(&tmp1, &tmp2, (yyvsp[-2].myexpr).node, (yyvsp[0].myexpr).node, (yyvsp[-2].myexpr).name, (yyvsp[0].myexpr).name);
 				      	if((yyvsp[-1].oper) == 0)(yyval.myexpr).node = create_node(">", tmp1, tmp2);
 				      	else if((yyvsp[-1].oper) == 1)(yyval.myexpr).node = create_node(">=", tmp1, tmp2);
 				      	else if((yyvsp[-1].oper) == 2)(yyval.myexpr).node = create_node("<", tmp1, tmp2);
 				      	else (yyval.myexpr).node = create_node("<=", tmp1, tmp2);
 				      }
-#line 1719 "dkk.tab.c"
+#line 1724 "dkk.tab.c"
     break;
 
   case 32: /* expression: expression ADDOP expression  */
-#line 196 "dkk.y"
+#line 201 "dkk.y"
                                       {if((yyvsp[-2].myexpr).type == T_INT && (yyvsp[0].myexpr).type == T_INT)
 						(yyval.myexpr).type = T_INT;
 					else if (((yyvsp[-2].myexpr).type == T_INT && (yyvsp[0].myexpr).type == T_FLOAT) || ((yyvsp[-2].myexpr).type == T_FLOAT && (yyvsp[0].myexpr).type == T_INT) || ((yyvsp[-2].myexpr).type == T_FLOAT && (yyvsp[0].myexpr).type == T_FLOAT))
 						(yyval.myexpr).type = T_FLOAT;
 					else yyerror("Wrong expression type.");
 					asd_t *tmp1; asd_t *tmp2;
-					normalize_node(tmp1, tmp2, (yyvsp[-2].myexpr).node, (yyvsp[0].myexpr).node, (yyvsp[-2].myexpr).name, (yyvsp[0].myexpr).name);
+					normalize_node(&tmp1, &tmp2, (yyvsp[-2].myexpr).node, (yyvsp[0].myexpr).node, (yyvsp[-2].myexpr).name, (yyvsp[0].myexpr).name);
 					(yyval.myexpr).val.ival = (yyvsp[-2].myexpr).val.ival + (yyvsp[0].myexpr).val.ival;
 					if((yyvsp[-1].oper) == 0) (yyval.myexpr).node = create_node("+", tmp1, tmp2);
 					else (yyval.myexpr).node = create_node("-", tmp1, tmp2);
 				      }
-#line 1735 "dkk.tab.c"
+#line 1740 "dkk.tab.c"
     break;
 
   case 33: /* expression: expression MULOP expression  */
-#line 207 "dkk.y"
+#line 212 "dkk.y"
                                       {if((yyvsp[-2].myexpr).type == T_INT && (yyvsp[0].myexpr).type == T_INT)
 						(yyval.myexpr).type = T_INT;
 					else if ((((yyvsp[-2].myexpr).type == T_INT && (yyvsp[0].myexpr).type == T_FLOAT) || ((yyvsp[-2].myexpr).type == T_FLOAT && (yyvsp[0].myexpr).type == T_INT) || ((yyvsp[-2].myexpr).type == T_FLOAT && (yyvsp[0].myexpr).type == T_FLOAT)))
 						(yyval.myexpr).type = T_FLOAT;
 					else yyerror("Wrong expression type.");
 					asd_t *tmp1; asd_t *tmp2;
-					normalize_node(tmp1, tmp2, (yyvsp[-2].myexpr).node, (yyvsp[0].myexpr).node, (yyvsp[-2].myexpr).name, (yyvsp[0].myexpr).name);
+					normalize_node(&tmp1, &tmp2, (yyvsp[-2].myexpr).node, (yyvsp[0].myexpr).node, (yyvsp[-2].myexpr).name, (yyvsp[0].myexpr).name);
 				      	if((yyvsp[-1].oper) == 0)(yyval.myexpr).node = create_node("*", tmp1, tmp2);
 				      	else if((yyvsp[-1].oper) == 1)(yyval.myexpr).node = create_node("/", tmp1, tmp2);
 				      	else (yyval.myexpr).node = create_node("%", tmp1, tmp2);
 				      }
-#line 1751 "dkk.tab.c"
+#line 1756 "dkk.tab.c"
     break;
 
   case 34: /* expression: NOTOP expression  */
-#line 218 "dkk.y"
+#line 223 "dkk.y"
                            { if ((yyvsp[0].myexpr).type != T_INT) yyerror("Wrong expression type.");
 	                     else (yyval.myexpr).type = (yyvsp[0].myexpr).type;
 				asd_t *tmp1;
-				normalize_node(tmp1, NULL, (yyvsp[0].myexpr).node, NULL, (yyvsp[0].myexpr).name, NULL);
+				normalize_node(&tmp1, NULL, (yyvsp[0].myexpr).node, NULL, (yyvsp[0].myexpr).name, NULL);
 			     (yyval.myexpr).node = create_node("!", tmp1, NULL);
 	                   }
-#line 1762 "dkk.tab.c"
+#line 1767 "dkk.tab.c"
     break;
 
   case 35: /* expression: ADDOP expression  */
-#line 224 "dkk.y"
+#line 229 "dkk.y"
                            { if (((yyvsp[0].myexpr).type != T_INT) || ((yyvsp[0].myexpr).type != T_FLOAT)) yyerror("Wrong expression type.");
 			     	(yyval.myexpr).type = (yyvsp[0].myexpr).type;
 				(yyval.myexpr).val = (yyvsp[0].myexpr).val;
@@ -1772,40 +1777,40 @@ yyreduce:
 					if((yyvsp[0].myexpr).type == T_INT)
 						(yyval.myexpr).val.fval = ((yyvsp[0].myexpr).val.fval * (-1));
 				asd_t *tmp1;
-				normalize_node(tmp1, NULL, (yyvsp[0].myexpr).node, NULL, (yyvsp[0].myexpr).name, NULL);
+				normalize_node(&tmp1, NULL, (yyvsp[0].myexpr).node, NULL, (yyvsp[0].myexpr).name, NULL);
 				if((yyvsp[-1].oper) == 0) (yyval.myexpr).node = create_node("+", tmp1, NULL);
 				else (yyval.myexpr).node = create_node("-", tmp1, NULL);
 			   }
-#line 1780 "dkk.tab.c"
+#line 1785 "dkk.tab.c"
     break;
 
   case 36: /* expression: SIZEOP expression  */
-#line 237 "dkk.y"
-                            {(yyval.myexpr).type = T_INT; (yyval.myexpr).val.ival = 0; asd_t *tmp1; normalize_node(tmp1, NULL, (yyvsp[0].myexpr).node, NULL, (yyvsp[0].myexpr).name, NULL); (yyval.myexpr).node = create_node("sizeof", tmp1, NULL);}
-#line 1786 "dkk.tab.c"
+#line 242 "dkk.y"
+                            {(yyval.myexpr).type = T_INT; (yyval.myexpr).val.ival = 0;char *buf = malloc(10); sprintf(buf, "%d", findsize2((yyvsp[0].myexpr).n, currtb, scope)); (yyval.myexpr).node = create_node(buf, NULL, NULL);}
+#line 1791 "dkk.tab.c"
     break;
 
   case 37: /* expression: INCDEC variable  */
-#line 238 "dkk.y"
+#line 243 "dkk.y"
                           {(yyval.myexpr) = (yyvsp[0].myexpr); asd_t *node = malloc(sizeof(asd_t)); node->name = "1"; if((yyvsp[-1].oper) == 0) (yyval.myexpr).node = create_node("+", (yyvsp[0].myexpr).node, node);
 				      	else (yyval.myexpr).node = create_node("-", (yyvsp[0].myexpr).node, node);}
-#line 1793 "dkk.tab.c"
+#line 1798 "dkk.tab.c"
     break;
 
   case 38: /* expression: variable INCDEC  */
-#line 240 "dkk.y"
+#line 245 "dkk.y"
                           {(yyval.myexpr) = (yyvsp[-1].myexpr); post_t *temp = malloc(sizeof(post_t));if((yyvsp[-1].myexpr).node != NULL && (yyvsp[-1].myexpr).node->name != NULL) temp->name = (yyvsp[-1].myexpr).node->name; else temp->name = strdup((yyvsp[-1].myexpr).name); temp->sign = (yyvsp[0].oper); temp->next = postlist; postlist = temp;}
-#line 1799 "dkk.tab.c"
+#line 1804 "dkk.tab.c"
     break;
 
   case 39: /* expression: variable  */
-#line 241 "dkk.y"
+#line 246 "dkk.y"
                    {(yyval.myexpr) = (yyvsp[0].myexpr);}
-#line 1805 "dkk.tab.c"
+#line 1810 "dkk.tab.c"
     break;
 
   case 40: /* expression: variable LPAREN expression_list RPAREN  */
-#line 242 "dkk.y"
+#line 247 "dkk.y"
                                                  {(yyval.myexpr) = (yyvsp[-3].myexpr);
 							if((yyvsp[-3].myexpr).n->func != NULL){
 							struct hashnode_s *n = hashtbl_lookup(currtb, scope, (yyvsp[-3].myexpr).n->key, currvis);
@@ -1815,37 +1820,85 @@ yyreduce:
 							par_list_t *p1 = n->func->node;
 							expr_list_t *p2 = (yyvsp[-1].myexprlist);
 							int i = 0;
+							int j = 0;
+							char *k;
+							char tmp1[15];
 							while(p1!=NULL && p2!=NULL){
 								if(strcmp(p1->type,p2->exp->n->data))
 									yyerror("Parameter type mismatch.");
 								if(p2->exp->name != NULL){
-								fprintf(fd, "=,\t%s,\t,\t$a%d\n", p2->exp->name, i); if(p2->exp->name[0] != '$') fprintf(fd3, "li $a%d, %s\n", i, p2->exp->name); else if (p2->exp->name[0] == '$' || p2->exp->name[0] == 't' ) fprintf(fd3, "mv $a%d, %s\n", i, p2->exp->name); else fprintf(fd3, "li $a%d, %s\n", i, p2->exp->name);}
-								p1=p1->next; p2=p2->next;
+								if(!strcmp(p1->type, "float"))
+									fprintf(fd, "=,\t%s,\t,\t$fa%d\n", p2->exp->name, j);
+								else
+									fprintf(fd, "=,\t%s,\t,\t$a%d\n", p2->exp->name, i-j);
+								if(p2->exp->name[0] != '$'){
+									if(atoi(p2->exp->name)){
+										if(strstr(p2->exp->name, ".") != NULL){
+											fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)strtof(p2->exp->name, NULL));
+											fprintf(fd3, "fcvt.s.w $fa%d, $t%d\n", j, reg2);
+										}
+										else fprintf(fd3, "li $a%d, %s\n", i-j, p2->exp->name);
+									}
+									else{
+										strcpy(tmp1, p2->exp->name);
+										k = strstr(tmp1 , "fp");
+										if(k == NULL) k = strstr(tmp1, "gp");
+										if(k != NULL)*k = '\0';
+										fprintf(fd3, "addi $t%d, %s, %s\n", ++reg2, &p2->exp->name[k-tmp1], &tmp1[4]);
+										if(p2->exp->name[0] == '&'){
+											fprintf(fd3, "mv $a%d, $t%d\n", i-j, reg2);
+										}
+										else{
+											if(!strcmp(p1->type, "float")){
+												fprintf(fd3, "lw $f%d, 0($t%d)\n", ++freg2, reg2);
+												fprintf(fd3, "mv $fa%d, $f%d\n", j, freg2);
+											}
+											else 
+												fprintf(fd3, "lw $t%d, 0($t%d)\n", ++reg2, reg2);
+												fprintf(fd3, "mv $a%d, $t%d\n", i-j, reg2);
+										}
+									}
+								}
+								else if (p2->exp->name[0] == '$' || p2->exp->name[0] == 't' ){
+									if(!strcmp(p1->type, "float"))
+										fprintf(fd3, "mv $fa%d, %s\n", j, p2->exp->name);
+									else 
+										fprintf(fd3, "mv $a%d, %s\n", i-j, p2->exp->name);
+								}
+								else{
+									if(!strcmp(p1->type, "float"))
+										fprintf(fd3, "li $fa%d, %s\n", j, p2->exp->name);
+									else
+									fprintf(fd3, "li $a%d, %s\n", i-j, p2->exp->name);
+								}
+								}
 								i++;
+								j = j + !strcmp(p1->type, "float")?1:0;
+								p1=p1->next; p2=p2->next;
 							}
 							if(p1 != NULL || p2!=NULL)
 								yyerror("Parameter cardinality mismatch.");
 							}
 							else if((yyvsp[-1].myexprlist) != NULL)
 								printf("semantic error\n");
-						}else if(strcmp((yyvsp[-3].myexpr).n->data, "func"))yyerror("Variable is not a function."); fprintf(fd, "+,\tcurrinst,\t4,\tra\n"); fprintf(fd3, "addi $ra, $pc, 4\n"); fprintf(fd, "jal,\t,\t,\t%s\n", (yyvsp[-3].myexpr).n->key); fprintf(fd3, "jal %s\n", (yyvsp[-3].myexpr).n->key);}
-#line 1833 "dkk.tab.c"
+						}else if(strcmp((yyvsp[-3].myexpr).n->data, "#"))yyerror("Variable is not a function."); fprintf(fd, "+,\tcurrinst,\t4,\tra\n"); fprintf(fd3, "addi $ra, $pc, 4\n"); fprintf(fd, "jal,\t,\t,\t%s\n", (yyvsp[-3].myexpr).n->key); fprintf(fd3, "jal %s\n", (yyvsp[-3].myexpr).n->key);}
+#line 1886 "dkk.tab.c"
     break;
 
   case 43: /* expression: constant  */
-#line 267 "dkk.y"
+#line 320 "dkk.y"
                    {(yyval.myexpr).type = (yyvsp[0].myexpr).type; (yyval.myexpr).val = (yyvsp[0].myexpr).val; (yyval.myexpr).n = malloc(sizeof(expr_t)); (yyval.myexpr).n->arr = malloc(sizeof(array_t)); (yyval.myexpr).n->arr->dims = 0; (yyval.myexpr).rec_count = 0;if((yyvsp[0].myexpr).type == T_CHAR) (yyval.myexpr).n->data = strdup("char"); else if((yyvsp[0].myexpr).type == T_INT) (yyval.myexpr).n->data = strdup("int"); else if((yyvsp[0].myexpr).type == T_FLOAT) (yyval.myexpr).n->data = strdup("float"); char *buf = malloc(15); if((yyvsp[0].myexpr).type == T_INT) sprintf(buf, "%d", (yyval.myexpr).val.ival); else if ((yyvsp[0].myexpr).type == T_CHAR) sprintf(buf, "%c", (yyval.myexpr).val.cval); if((yyvsp[0].myexpr).type == T_FLOAT) sprintf(buf, "%f", (yyval.myexpr).val.fval); (yyval.myexpr).node = create_node(buf, NULL, NULL);}
-#line 1839 "dkk.tab.c"
+#line 1892 "dkk.tab.c"
     break;
 
   case 46: /* expression: listexpression  */
-#line 270 "dkk.y"
+#line 323 "dkk.y"
                          {(yyval.myexpr).type = (yyvsp[0].myexprlist)->exp->type; (yyval.myexpr).val.ival = (yyvsp[0].myexprlist)->listsize; (yyval.myexpr).rec_count = 0; (yyval.myexpr).n = NULL;}
-#line 1845 "dkk.tab.c"
+#line 1898 "dkk.tab.c"
     break;
 
   case 47: /* variable: variable LBRACK general_expression RBRACK  */
-#line 271 "dkk.y"
+#line 324 "dkk.y"
                                                      {
 							if((yyvsp[-1].myexprlist)->exp->type != T_INT ||((yyvsp[-1].myexprlist)->exp->n->arr != NULL) && ((yyvsp[-1].myexprlist)->exp->rec_count != (yyvsp[-1].myexprlist)->exp->n->arr->dims))
 								yyerror("Wrong array indexing.");
@@ -1886,11 +1939,11 @@ yyreduce:
 								gp = 0;
 							}
 					}
-#line 1890 "dkk.tab.c"
+#line 1943 "dkk.tab.c"
     break;
 
   case 48: /* variable: variable DOT ID  */
-#line 311 "dkk.y"
+#line 364 "dkk.y"
                           {if((yyvsp[-2].myexpr).n == NULL) yyerror("Variable doesn't exist.");
 			    struct hashnode_s *p=(yyvsp[-2].myexpr).n;
                             if ((yyvsp[-2].myexpr).n->un != NULL) {	
@@ -1905,8 +1958,8 @@ yyreduce:
 					currvis = 1;
 					p = hashtbl_lookup(currtb, scope, p->cla->superclass, 0);
 				}
-				p = hashtbl_lookup((yyvsp[-2].myexpr).n->cla->classtb, scope, (yyvsp[0].str), currvis);
-			   	currtb = (yyvsp[-2].myexpr).n->cla->classtb;
+				p = hashtbl_lookup(p->cla->classtb, scope, (yyvsp[0].str), currvis);
+				currtb = (yyvsp[-2].myexpr).n->cla->classtb;
 				(yyval.myexpr).n = p;
 			    }
 			    else 
@@ -1920,12 +1973,31 @@ yyreduce:
 				p->arr->dims = 0;
 				(yyval.myexpr).n = p;
 			}
+			//char *buf = malloc(10);
+			//sprintf(buf, "$t%d", reg);
+			//$$.node = malloc(sizeof(asd_t));
+			//$$.node->name = buf;
+			char *str = malloc(20);
+			sprintf(str, "f%s", currfunc->key);
+			printf("str is %s\n", str);
+			bindv *temp = findoff(str, (yyvsp[-2].myexpr).n->key);
+			if(temp==NULL)temp = findoff("gglobal", (yyvsp[-2].myexpr).n->key);
+			printf("off is %d\n", temp->offset);
+			sprintf(str, "c%s", (yyvsp[-2].myexpr).n->data);
+			printf("str is %s\n", str);
+			bindv*temp2 = findoff(str, (yyvsp[0].str));
+			if(temp2==NULL)temp2 = findoff("gglobal", (yyvsp[0].str));
+			printf("off is %d\n", temp2->offset);
+			if(temp!=NULL && temp!=NULL && temp2!=NULL){
+				sprintf(str, "off=%d%s", temp->offset - temp2->offset /*findsize(hashtbl_lookup(currtb, scope, $3, currvis))*/, temp->scope?"fp":"gp");
+				(yyval.myexpr).node = create_node(str, NULL, NULL);
 			}
-#line 1925 "dkk.tab.c"
+			}
+#line 1997 "dkk.tab.c"
     break;
 
   case 49: /* variable: LISTFUNC LPAREN general_expression RPAREN  */
-#line 341 "dkk.y"
+#line 413 "dkk.y"
                                                     {char *ptr = (yyvsp[-3].str); int count = 0;
 							if((yyvsp[-1].myexprlist)->exp->n == NULL || (yyvsp[-1].myexprlist)->exp->n->arr == NULL ||(yyvsp[-1].myexprlist)->exp->n->arr->islist == 0)
 								yyerror("Parameter is not list.");
@@ -1943,13 +2015,13 @@ yyreduce:
 							(yyval.myexpr).val.ival = 1;
 							(yyval.myexpr).type = (yyvsp[-1].myexprlist)->exp->type;
 						}
-#line 1947 "dkk.tab.c"
+#line 2019 "dkk.tab.c"
     break;
 
   case 50: /* variable: decltype ID  */
-#line 358 "dkk.y"
+#line 430 "dkk.y"
                       {struct hashnode_s *p;
-			if((yyvsp[-1].ival)) p = hashtbl_lookup(currtb, 0, (yyvsp[0].str), currvis);
+			if((yyvsp[-1].ival))p = hashtbl_lookup(currtb, 0, (yyvsp[0].str), currvis);
 			else p = hashtbl_lookup(currtb, scope, (yyvsp[0].str), currvis);
 			if(p== NULL && deflist == NULL)
 				yyerror("Variable doesn't exist.");
@@ -1988,19 +2060,26 @@ yyreduce:
 			else{
 				bindf *tmp1 = currlist;
 				par_list_t *tmp2;
-				while (tmp1 != NULL && strcmp(tmp1->name, currfunc->key))
+				
+				while (tmp1 != NULL && strcmp(&tmp1->name[1], currfunc->key)){
 					tmp1 = tmp1->next;
-				if(!strcmp(tmp1->name, currfunc->key) && currfunc->func != NULL && currfunc->func->node != NULL){
+				}
+				if(tmp1 != NULL && !strcmp(&tmp1->name[1], currfunc->key) && currfunc->func != NULL && currfunc->func->node != NULL){
 					tmp2 = currfunc->func->node;
-					int i;
+					int i = 0;
+					int j = 0;
 					char tmp[15];
-					for(i = 0; tmp2 != NULL; i++){
+					while(tmp2 != NULL){
+						i++;
+						j = j + !strcmp(tmp2->type, "float")?1:0;
 						if(!strcmp(tmp2->name, (yyvsp[0].str)))
 							break;
 						tmp2 = tmp2->next;
 					}
 					if(tmp2 != NULL){
-						sprintf(tmp, "$a%d", i);
+						if(!strcmp(tmp2->type, "float"))
+							sprintf(tmp, "$fa%d", j-1);
+						else sprintf(tmp, "$a%d", i-j);
 						(yyval.myexpr).name = strdup(tmp);
 					}
 				}
@@ -2022,145 +2101,154 @@ yyreduce:
 				p->arr->islist = 0;
 			}
 			char *str = malloc(20);
-			bindv *temp = findoff(currfunc->key, (yyvsp[0].str));
-			if(temp!=NULL){
+			sprintf(str, "f%s", currfunc->key);
+			bindv *temp = findoff(str, (yyvsp[0].str));
+			if(temp!=NULL && temp!= NULL){
 				sprintf(str, "off=%d%s", temp->offset, temp->scope?"fp":"gp");
-				printf("%s\n\n\n", str);
 				(yyval.myexpr).node = create_node(str, NULL, NULL);
 			}
 		}
-#line 2033 "dkk.tab.c"
+#line 2112 "dkk.tab.c"
     break;
 
   case 51: /* variable: THIS  */
-#line 439 "dkk.y"
+#line 518 "dkk.y"
                {(yyval.myexpr).rec_count = 0; (yyval.myexpr).val.ival = 0; (yyval.myexpr).n = currclass; (yyval.myexpr).type = T_ID;}
-#line 2039 "dkk.tab.c"
+#line 2118 "dkk.tab.c"
     break;
 
   case 52: /* general_expression: general_expression COMMA general_expression  */
-#line 440 "dkk.y"
+#line 519 "dkk.y"
                                                                  {expr_list_t *k = malloc(sizeof(expr_list_t)); k->exp = (yyvsp[0].myexprlist)->exp; k->next =(yyvsp[-2].myexprlist); k->listsize = (yyvsp[-2].myexprlist)->listsize+(yyvsp[0].myexprlist)->listsize; (yyval.myexprlist) = k;}
-#line 2045 "dkk.tab.c"
+#line 2124 "dkk.tab.c"
     break;
 
   case 53: /* general_expression: assignment  */
-#line 441 "dkk.y"
+#line 520 "dkk.y"
                     {expr_list_t *k = malloc(sizeof(expr_list_t)); k->exp = malloc(sizeof(expr_t));k->exp->type = (yyvsp[0].myexpr).type; k->exp->val = (yyvsp[0].myexpr).val; k->exp->rec_count = (yyvsp[0].myexpr).rec_count; k->exp->n = (yyvsp[0].myexpr).n; k->next =  NULL;  k->listsize = 1;(yyval.myexprlist) = k; (yyval.myexprlist)->exp->node = (yyvsp[0].myexpr).node; print_tree((yyvsp[0].myexpr).node); if(!noprint){ print_ir((yyvsp[0].myexpr).node); patchinc(); (yyval.myexprlist)->exp->name = lastname;}}
-#line 2051 "dkk.tab.c"
+#line 2130 "dkk.tab.c"
     break;
 
   case 54: /* assignment: variable ASSIGN assignment  */
-#line 442 "dkk.y"
+#line 521 "dkk.y"
                                         {if((yyvsp[-2].myexpr).rec_count != (yyvsp[-2].myexpr).n->arr->dims) yyerror("Incorrect dimension indexing.");if(findsize((yyvsp[-2].myexpr).n) != findsize((yyvsp[0].myexpr).n)) yyerror("Type mismatch.");
 					if((yyvsp[-2].myexpr).n->arr!= NULL && (yyvsp[-2].myexpr).n->arr->islist)
 						(yyvsp[-2].myexpr).n->arr->listsize[(yyvsp[-2].myexpr).val.ival] = (yyvsp[0].myexpr).val.ival;
 					if((yyvsp[-2].myexpr).node != NULL)
 						(yyval.myexpr).node = create_node("=", (yyvsp[-2].myexpr).node, (yyvsp[0].myexpr).node);
-					else
+					else{
+						printf("$1.name is %s\n", (yyvsp[-2].myexpr).name);
+						char *str = malloc(20);
+						sprintf(str, "f%s", currfunc->key);
+						bindv *k;
+						k = findoff(str, (yyvsp[-2].myexpr).n->key);
+						printf("s is %s\n\n\n", str);
+						if(k == NULL) k = findoff("gglobal", (yyvsp[-2].myexpr).n->key);
+						if(k!=NULL){ if((yyvsp[-2].myexpr).type == T_INT){fprintf(fd3, "lw $t%d, %d(%s)\n", ++reg2, k->offset, (yyvsp[-2].myexpr).n->scope?"fp":"gp"); (yyvsp[-2].myexpr).name = malloc(10); sprintf((yyvsp[-2].myexpr).name, "$t%d", reg2);}}
 						(yyval.myexpr).node = create_node("=", create_node((yyvsp[-2].myexpr).name, NULL, NULL), (yyvsp[0].myexpr).node);
 					}
-#line 2064 "dkk.tab.c"
+					}
+#line 2152 "dkk.tab.c"
     break;
 
   case 56: /* assignment: expression  */
-#line 451 "dkk.y"
+#line 539 "dkk.y"
                      {(yyval.myexpr) = (yyvsp[0].myexpr); /*if($1.n == NULL){char *temp = malloc(15); if($1.type == T_INT) sprintf(temp, "%d", $1.val.ival); else if($1.type == T_CHAR) sprintf(temp, "c", $1.val.cval); else if($1.type == T_FLOAT) sprintf(temp, "%2f", $1.val.fval); $$.name = temp;} else lastname = $1.n->key;*/}
-#line 2070 "dkk.tab.c"
+#line 2158 "dkk.tab.c"
     break;
 
   case 57: /* expression_list: general_expression  */
-#line 452 "dkk.y"
+#line 540 "dkk.y"
                                      {(yyval.myexprlist) = (yyvsp[0].myexprlist);}
-#line 2076 "dkk.tab.c"
+#line 2164 "dkk.tab.c"
     break;
 
   case 58: /* expression_list: %empty  */
-#line 452 "dkk.y"
+#line 540 "dkk.y"
                                                   {(yyval.myexprlist) = NULL;}
-#line 2082 "dkk.tab.c"
+#line 2170 "dkk.tab.c"
     break;
 
   case 59: /* constant: CCONST  */
-#line 453 "dkk.y"
+#line 541 "dkk.y"
                   {(yyval.myexpr).type = T_CHAR; (yyval.myexpr).val.cval = yylval.cval;}
-#line 2088 "dkk.tab.c"
+#line 2176 "dkk.tab.c"
     break;
 
   case 60: /* constant: ICONST  */
-#line 454 "dkk.y"
+#line 542 "dkk.y"
                  {(yyval.myexpr).type = T_INT; (yyval.myexpr).val.ival = yylval.ival;}
-#line 2094 "dkk.tab.c"
+#line 2182 "dkk.tab.c"
     break;
 
   case 61: /* constant: FCONST  */
-#line 455 "dkk.y"
+#line 543 "dkk.y"
                  {(yyval.myexpr).type = T_FLOAT; (yyval.myexpr).val.fval = yylval.fval;}
-#line 2100 "dkk.tab.c"
+#line 2188 "dkk.tab.c"
     break;
 
   case 62: /* listexpression: LBRACK expression_list RBRACK  */
-#line 456 "dkk.y"
+#line 544 "dkk.y"
                                                {(yyval.myexprlist) = (yyvsp[-1].myexprlist);}
-#line 2106 "dkk.tab.c"
+#line 2194 "dkk.tab.c"
     break;
 
   case 63: /* $@2: %empty  */
-#line 457 "dkk.y"
-                             {hashtbl_insert(symtb, (yyvsp[0].str), "class", scope, NULL, 1, 0, NULL, &currlist); struct hashnode_s *p = hashtbl_lookup(symtb, scope, (yyvsp[0].str), currvis); currtb = p->cla->classtb; scope++;}
-#line 2112 "dkk.tab.c"
+#line 545 "dkk.y"
+                             {hashtbl_insert(symtb, (yyvsp[0].str), "class", scope, NULL, 1, 0, NULL, &currlist); struct hashnode_s *p = hashtbl_lookup(symtb, scope, (yyvsp[0].str), currvis); currtb = p->cla->classtb; currfunc = p; scope++;}
+#line 2200 "dkk.tab.c"
     break;
 
   case 64: /* class_declaration: CLASS ID $@2 class_body SEMI  */
-#line 457 "dkk.y"
-                                                                                                                                                                                                                           {scope--;struct hashnode_s *p = hashtbl_lookup(symtb, scope, (yyvsp[-3].str), currvis); p->cla->superclass = (yyvsp[-1].str);currtb = symtb; currvis = 0;}
-#line 2118 "dkk.tab.c"
+#line 545 "dkk.y"
+                                                                                                                                                                                                                                         {fpoff = 0;scope--;struct hashnode_s *p = hashtbl_lookup(symtb, scope, (yyvsp[-3].str), currvis); p->cla->superclass = (yyvsp[-1].str); inherit(p); currtb = symtb; currvis = 0;}
+#line 2206 "dkk.tab.c"
     break;
 
   case 65: /* class_body: parent LBRACE members_methods RBRACE  */
-#line 458 "dkk.y"
+#line 546 "dkk.y"
                                                   {(yyval.str) = (yyvsp[-3].str);}
-#line 2124 "dkk.tab.c"
+#line 2212 "dkk.tab.c"
     break;
 
   case 66: /* parent: COLON ID  */
-#line 459 "dkk.y"
+#line 547 "dkk.y"
                   {(yyval.str) = (yyvsp[0].str);}
-#line 2130 "dkk.tab.c"
+#line 2218 "dkk.tab.c"
     break;
 
   case 67: /* parent: %empty  */
-#line 459 "dkk.y"
+#line 547 "dkk.y"
                                {(yyval.str) = NULL;}
-#line 2136 "dkk.tab.c"
+#line 2224 "dkk.tab.c"
     break;
 
   case 70: /* access: PRIVATE COLON  */
-#line 461 "dkk.y"
+#line 549 "dkk.y"
                        {currvis = 2;}
-#line 2142 "dkk.tab.c"
+#line 2230 "dkk.tab.c"
     break;
 
   case 71: /* access: PROTECTED COLON  */
-#line 461 "dkk.y"
+#line 549 "dkk.y"
                                                        {currvis = 1;}
-#line 2148 "dkk.tab.c"
+#line 2236 "dkk.tab.c"
     break;
 
   case 72: /* access: PUBLIC COLON  */
-#line 461 "dkk.y"
+#line 549 "dkk.y"
                                                                                      {currvis = 0;}
-#line 2154 "dkk.tab.c"
+#line 2242 "dkk.tab.c"
     break;
 
   case 78: /* var_declaration: typename variabledefs SEMI  */
-#line 466 "dkk.y"
+#line 554 "dkk.y"
                                              {var_decl((yyvsp[-1].idlist), (yyvsp[-2].str));}
-#line 2160 "dkk.tab.c"
+#line 2248 "dkk.tab.c"
     break;
 
   case 79: /* variabledefs: variabledefs COMMA variabledef  */
-#line 467 "dkk.y"
+#line 555 "dkk.y"
                                               {
           id_list_t* n = malloc(sizeof(id_list_t));
           n->id = (yyvsp[0].id);
@@ -2168,11 +2256,11 @@ yyreduce:
 	  n->next = (yyvsp[-2].idlist);
           (yyval.idlist) = n;
       }
-#line 2172 "dkk.tab.c"
+#line 2260 "dkk.tab.c"
     break;
 
   case 80: /* variabledefs: variabledef  */
-#line 474 "dkk.y"
+#line 562 "dkk.y"
                       {
           id_list_t* n = malloc(sizeof(id_list_t));
           n->id = (yyvsp[0].id);
@@ -2180,17 +2268,17 @@ yyreduce:
           n->next = NULL;
           (yyval.idlist) = n;
       }
-#line 2184 "dkk.tab.c"
+#line 2272 "dkk.tab.c"
     break;
 
   case 81: /* $@3: %empty  */
-#line 481 "dkk.y"
+#line 569 "dkk.y"
                       {dim_count = 0;}
-#line 2190 "dkk.tab.c"
+#line 2278 "dkk.tab.c"
     break;
 
   case 82: /* variabledef: LIST ID $@3 dims  */
-#line 481 "dkk.y"
+#line 569 "dkk.y"
                                             {	(yyval.id) = malloc(sizeof(id_t)); (yyval.id)->id = (yyvsp[-2].str);
 						if((yyvsp[0].arr) == NULL){
 							(yyval.id)->arr = malloc(sizeof(array_t));
@@ -2201,68 +2289,68 @@ yyreduce:
 						for(int i = 0; i < (yyval.id)->arr->dims; i++)
 							totalsize = totalsize * (yyval.id)->arr->dim_size[i];
 						(yyval.id)->arr->listsize = calloc(totalsize, sizeof(int));}
-#line 2205 "dkk.tab.c"
+#line 2293 "dkk.tab.c"
     break;
 
   case 83: /* $@4: %empty  */
-#line 491 "dkk.y"
+#line 579 "dkk.y"
              {dim_count = 0;}
-#line 2211 "dkk.tab.c"
+#line 2299 "dkk.tab.c"
     break;
 
   case 84: /* variabledef: ID $@4 dims  */
-#line 491 "dkk.y"
+#line 579 "dkk.y"
                                    {
 		(yyval.id) = malloc(sizeof(id_t));
 		(yyval.id)->id = (yyvsp[-2].str);
 		(yyval.id)->arr = (yyvsp[0].arr);
 	}
-#line 2221 "dkk.tab.c"
+#line 2309 "dkk.tab.c"
     break;
 
   case 92: /* short_func_declaration: nopar_func_header SEMI  */
-#line 501 "dkk.y"
+#line 589 "dkk.y"
                                                                             { struct hashnode_s *p = hashtbl_lookup(currtb, scope, (yyvsp[-1].myhdr).name, currvis);
 									  if (p != NULL) yyerror("Double header declaration");
 									  else {
-									  	hashtbl_insert(currtb, (yyvsp[-1].myhdr).name, "func", scope, NULL, 1, currvis, NULL, &currlist);
+									  	hashtbl_insert(currtb, (yyvsp[-1].myhdr).name, "#", scope, NULL, 1, currvis, NULL, &currlist);
 										p = hashtbl_lookup(currtb, scope, (yyvsp[-1].myhdr).name, currvis);
 										p->func->ret_type = (yyvsp[-1].myhdr).type;			
 										p->func->header_declared = 0;
 										p->func->node = NULL;
 									  }
 									}
-#line 2236 "dkk.tab.c"
+#line 2324 "dkk.tab.c"
     break;
 
   case 93: /* short_par_func_header: func_header_start LPAREN parameter_types RPAREN  */
-#line 511 "dkk.y"
+#line 599 "dkk.y"
                                                                         {struct hashnode_s *p = hashtbl_lookup(currtb, scope, (yyvsp[-3].myhdr).name, currvis);
 									  if (p != NULL) yyerror("Double header declaration");
 									  else { 
-										hashtbl_insert(currtb, (yyvsp[-3].myhdr).name, "func", scope, NULL, 1, currvis, NULL, &currlist);
+										hashtbl_insert(currtb, (yyvsp[-3].myhdr).name, "#", scope, NULL, 1, currvis, NULL, &currlist);
 										p = hashtbl_lookup(currtb, scope, (yyvsp[-3].myhdr).name, currvis);
 										p->func->ret_type = (yyvsp[-3].myhdr).type;			
 										p->func->header_declared = 0;
 										p->func->node = (yyvsp[-1].par_list);
 									  }}
-#line 2250 "dkk.tab.c"
+#line 2338 "dkk.tab.c"
     break;
 
   case 94: /* func_header_start: typename ID  */
-#line 520 "dkk.y"
+#line 608 "dkk.y"
                                 {if(!strcmp((yyvsp[-1].str), "float") ||!strcmp((yyvsp[-1].str), "int") || !strcmp((yyvsp[-1].str), "void")|| !strcmp((yyvsp[-1].str), "char")){(yyval.myhdr).type = (yyvsp[-1].str); (yyval.myhdr).name = (yyvsp[0].str);} else yyerror("Function type incorrect");}
-#line 2256 "dkk.tab.c"
+#line 2344 "dkk.tab.c"
     break;
 
   case 95: /* func_header_start: LIST ID  */
-#line 520 "dkk.y"
+#line 608 "dkk.y"
                                                                                                                                                                                                              {(yyval.myhdr).type = strdup("list"); (yyval.myhdr).name = (yyvsp[0].str);}
-#line 2262 "dkk.tab.c"
+#line 2350 "dkk.tab.c"
     break;
 
   case 96: /* parameter_types: parameter_types COMMA typename pass_list_dims  */
-#line 521 "dkk.y"
+#line 609 "dkk.y"
                                                                {
 		par_list_t *n = malloc(sizeof(par_list_t));
 		n->type = (yyvsp[-1].str);
@@ -2270,11 +2358,11 @@ yyreduce:
 		n->arr = (yyvsp[0].arr);
 		n->name = NULL;
 		(yyval.par_list) = n; }
-#line 2274 "dkk.tab.c"
+#line 2362 "dkk.tab.c"
     break;
 
   case 97: /* parameter_types: typename pass_list_dims  */
-#line 528 "dkk.y"
+#line 616 "dkk.y"
                                           {
 		par_list_t *n = malloc(sizeof(par_list_t));
 		n->type = (yyvsp[-1].str);
@@ -2283,47 +2371,47 @@ yyreduce:
 		n->name = NULL;
 		(yyval.par_list)= n;
 		}
-#line 2287 "dkk.tab.c"
+#line 2375 "dkk.tab.c"
     break;
 
   case 98: /* pass_list_dims: listspec dims  */
-#line 536 "dkk.y"
+#line 624 "dkk.y"
                                {(yyval.arr) = (yyvsp[0].arr);}
-#line 2293 "dkk.tab.c"
+#line 2381 "dkk.tab.c"
     break;
 
   case 99: /* pass_list_dims: REFER  */
-#line 536 "dkk.y"
+#line 624 "dkk.y"
                                                   {array_t *n = malloc(sizeof(array_t)); n->dims = -1; (yyval.arr) = n;}
-#line 2299 "dkk.tab.c"
+#line 2387 "dkk.tab.c"
     break;
 
   case 100: /* nopar_func_header: func_header_start LPAREN RPAREN  */
-#line 537 "dkk.y"
+#line 625 "dkk.y"
                                                     {(yyval.myhdr)=(yyvsp[-2].myhdr);}
-#line 2305 "dkk.tab.c"
+#line 2393 "dkk.tab.c"
     break;
 
   case 101: /* $@5: %empty  */
-#line 538 "dkk.y"
+#line 626 "dkk.y"
                              {hashtbl_insert(symtb, (yyvsp[0].str), "union", 0, NULL, 1, 0, NULL, &currlist); struct hashnode_s *p = hashtbl_lookup(symtb, scope, (yyvsp[0].str), 0); currtb = p->un->untb;}
-#line 2311 "dkk.tab.c"
+#line 2399 "dkk.tab.c"
     break;
 
   case 102: /* union_declaration: UNION ID $@5 union_body SEMI  */
-#line 538 "dkk.y"
+#line 626 "dkk.y"
                                                                                                                                                                                                      {currtb = symtb;}
-#line 2317 "dkk.tab.c"
+#line 2405 "dkk.tab.c"
     break;
 
   case 103: /* global_var_declaration: typename init_variabledefs SEMI  */
-#line 539 "dkk.y"
+#line 627 "dkk.y"
                                                          {var_decl((yyvsp[-1].idlist), (yyvsp[-2].str)); deflist = NULL;}
-#line 2323 "dkk.tab.c"
+#line 2411 "dkk.tab.c"
     break;
 
   case 104: /* init_variabledefs: init_variabledefs COMMA init_variabledef  */
-#line 540 "dkk.y"
+#line 628 "dkk.y"
                                                               {
          		 id_list_t* n = malloc(sizeof(id_list_t));
          		 n->id = (yyvsp[0].id);
@@ -2331,11 +2419,11 @@ yyreduce:
          		 (yyval.idlist) = n;
 			 deflist = n;
       			}
-#line 2335 "dkk.tab.c"
+#line 2423 "dkk.tab.c"
     break;
 
   case 105: /* init_variabledefs: init_variabledef  */
-#line 547 "dkk.y"
+#line 635 "dkk.y"
                                                   {
 					id_list_t* n = malloc(sizeof(id_list_t));
 					n->id = (yyvsp[0].id);
@@ -2343,109 +2431,109 @@ yyreduce:
 					(yyval.idlist) = n;
 					deflist = n;
 				}
-#line 2347 "dkk.tab.c"
+#line 2435 "dkk.tab.c"
     break;
 
   case 106: /* init_variabledef: variabledef initializer  */
-#line 555 "dkk.y"
-                                           {int p=1; for(int i=0;((yyvsp[-1].id)!=NULL && (yyvsp[-1].id)->arr!=NULL && i<(yyvsp[-1].id)->arr->dims); i++) p = p * (yyvsp[-1].id)->arr->dim_size[i]; if((((yyvsp[-1].id)!=NULL)&&((yyvsp[-1].id)->data!=NULL)&&(!strcmp((yyvsp[-1].id)->data,"char"))&&((yyvsp[-1].id)->arr!=NULL)&& p==(yyvsp[0].init_vals1)->size)||p<(yyvsp[0].init_vals1)->size) yyerror("Wrong Initialization."); (yyval.id)->init_vals = (yyvsp[0].init_vals1);}
-#line 2353 "dkk.tab.c"
+#line 643 "dkk.y"
+                                           {int p=1; for(int i=0;((yyvsp[-1].id)!=NULL && (yyvsp[-1].id)->arr!=NULL && i<(yyvsp[-1].id)->arr->dims); i++) p = p * (yyvsp[-1].id)->arr->dim_size[i];if((((yyvsp[-1].id)!=NULL)&&((yyvsp[-1].id)->data!=NULL)&&(!strcmp((yyvsp[-1].id)->data,"char"))&&((yyvsp[-1].id)->arr!=NULL)&& (((yyvsp[0].init_vals1)!=NULL) && p==(yyvsp[0].init_vals1)->size))|| (((yyvsp[0].init_vals1)!=NULL && p<(yyvsp[0].init_vals1)->size))) yyerror("Wrong Initialization."); if((yyvsp[0].init_vals1)!=NULL)(yyval.id)->init_vals = (yyvsp[0].init_vals1);}
+#line 2441 "dkk.tab.c"
     break;
 
   case 107: /* $@6: %empty  */
-#line 556 "dkk.y"
+#line 644 "dkk.y"
                      {dim_count=0;}
-#line 2359 "dkk.tab.c"
+#line 2447 "dkk.tab.c"
     break;
 
   case 108: /* initializer: ASSIGN $@6 init_value  */
-#line 556 "dkk.y"
+#line 644 "dkk.y"
                                                {(yyval.init_vals1) = (yyvsp[0].init_vals1);}
-#line 2365 "dkk.tab.c"
+#line 2453 "dkk.tab.c"
     break;
 
   case 109: /* initializer: %empty  */
-#line 556 "dkk.y"
+#line 644 "dkk.y"
                                                             {(yyval.init_vals1)=NULL;}
-#line 2371 "dkk.tab.c"
+#line 2459 "dkk.tab.c"
     break;
 
   case 110: /* init_value: constant  */
-#line 557 "dkk.y"
+#line 645 "dkk.y"
                                                {init_vals *p = malloc(sizeof(init_vals)); p->val = (yyvsp[0].myexpr).val; p->next = NULL;  (yyval.init_vals1) = p; (yyval.init_vals1)->size = 1; (yyval.init_vals1)->type = (yyvsp[0].myexpr).type;}
-#line 2377 "dkk.tab.c"
+#line 2465 "dkk.tab.c"
     break;
 
   case 111: /* init_value: LBRACE init_values RBRACE  */
-#line 558 "dkk.y"
+#line 646 "dkk.y"
                                     {(yyval.init_vals1) = (yyvsp[-1].init_vals1);}
-#line 2383 "dkk.tab.c"
+#line 2471 "dkk.tab.c"
     break;
 
   case 112: /* init_value: STRING  */
-#line 559 "dkk.y"
+#line 647 "dkk.y"
                  {(yyval.init_vals1)->string = (yyvsp[0].str); (yyval.init_vals1)->size=strlen((yyvsp[0].str)); (yyval.init_vals1)->type = T_CHAR;}
-#line 2389 "dkk.tab.c"
+#line 2477 "dkk.tab.c"
     break;
 
   case 113: /* init_values: init_values COMMA init_value  */
-#line 560 "dkk.y"
+#line 648 "dkk.y"
                                            {if ((yyvsp[-2].init_vals1)->type !=(yyvsp[0].init_vals1)->type) yyerror("Initialization types dont match."); init_vals *tmp = (yyvsp[-2].init_vals1); while(tmp->next) tmp = tmp->next; tmp->next = (yyvsp[0].init_vals1); (yyval.init_vals1) = (yyvsp[-2].init_vals1); (yyval.init_vals1)->size = (yyvsp[-2].init_vals1)->size + (yyvsp[0].init_vals1)->size;}
-#line 2395 "dkk.tab.c"
+#line 2483 "dkk.tab.c"
     break;
 
   case 114: /* init_values: init_value  */
-#line 561 "dkk.y"
+#line 649 "dkk.y"
                              {(yyval.init_vals1)= (yyvsp[0].init_vals1);}
-#line 2401 "dkk.tab.c"
+#line 2489 "dkk.tab.c"
     break;
 
   case 116: /* func_declaration: full_func_declaration  */
-#line 562 "dkk.y"
-                                                                  {fprintf(fd,"jr,\t,\t,\t$ra\n"); fprintf(fd3, "jr $ra\n"); currfunc = NULL;}
-#line 2407 "dkk.tab.c"
+#line 650 "dkk.y"
+                                                                  {fprintf(fd,"jr,\t,\t,\t$ra\n"); currfunc = NULL;}
+#line 2495 "dkk.tab.c"
     break;
 
   case 117: /* $@7: %empty  */
-#line 563 "dkk.y"
+#line 651 "dkk.y"
                                              {scope++; currfunc = hashtbl_lookup(currtb, scope, (yyvsp[0].myhdr).name, 0); fpoff = 0;}
-#line 2413 "dkk.tab.c"
+#line 2501 "dkk.tab.c"
     break;
 
   case 118: /* full_func_declaration: full_par_func_header $@7 LBRACE decl_statements RBRACE  */
-#line 563 "dkk.y"
+#line 651 "dkk.y"
                                                                                                                                                        {currfunc = NULL; fpoff = 0; currclass = NULL;hashtbl_get(currtb, scope); scope--;}
-#line 2419 "dkk.tab.c"
+#line 2507 "dkk.tab.c"
     break;
 
   case 119: /* $@8: %empty  */
-#line 564 "dkk.y"
+#line 652 "dkk.y"
                                           {scope++; currfunc = (yyvsp[0].node); fpoff = 0;}
-#line 2425 "dkk.tab.c"
+#line 2513 "dkk.tab.c"
     break;
 
   case 120: /* full_func_declaration: nopar_class_func_header $@8 LBRACE decl_statements RBRACE  */
-#line 564 "dkk.y"
+#line 652 "dkk.y"
                                                                                                             {currfunc = NULL; fpoff = 0; hashtbl_get(currtb, scope);scope--;}
-#line 2431 "dkk.tab.c"
+#line 2519 "dkk.tab.c"
     break;
 
   case 121: /* $@9: %empty  */
-#line 565 "dkk.y"
+#line 653 "dkk.y"
                                     {scope++; currfunc = hashtbl_lookup(currtb, scope, (yyvsp[0].myhdr).name, 0); fpoff = 0;}
-#line 2437 "dkk.tab.c"
+#line 2525 "dkk.tab.c"
     break;
 
   case 122: /* full_func_declaration: nopar_func_header $@9 LBRACE decl_statements RBRACE  */
-#line 565 "dkk.y"
+#line 653 "dkk.y"
                                                                                                                                              {currfunc = NULL; fpoff = 0; hashtbl_get(currtb, scope);scope--;}
-#line 2443 "dkk.tab.c"
+#line 2531 "dkk.tab.c"
     break;
 
   case 123: /* full_par_func_header: class_func_header_start LPAREN parameter_list RPAREN  */
-#line 566 "dkk.y"
-                                                                            { struct hashnode_s *p = (yyvsp[-3].node);
-								   if(strcmp(p->data, "func")) yyerror("Class member not a method.");
+#line 654 "dkk.y"
+                                                                            {currfunc = (yyvsp[-3].node); struct hashnode_s *p = (yyvsp[-3].node);
+								   if(strcmp(p->data, "#")) yyerror("Class member not a method.");
 								   if (p != NULL && p->istype == 0) yyerror("Class method already declared.");
 							           else if (p != NULL && p->istype == 1){ //we have header b4 body
 									id_list_t *n = (yyvsp[-1].idlist);
@@ -2474,13 +2562,13 @@ yyreduce:
 								   else yyerror("Class method incorrectly declared.");
 								header_t k;
 								k.name = p->key;}
-#line 2478 "dkk.tab.c"
+#line 2566 "dkk.tab.c"
     break;
 
   case 124: /* full_par_func_header: func_header_start LPAREN parameter_list RPAREN  */
-#line 596 "dkk.y"
-                                                                 { struct hashnode_s *p = hashtbl_lookup(currtb, scope, (yyvsp[-3].myhdr).name, 0);
-								   if((p!=NULL) && strcmp(p->data, "func")) yyerror("Variable is not a function.");
+#line 684 "dkk.y"
+                                                                 {; struct hashnode_s *p = hashtbl_lookup(currtb, scope, (yyvsp[-3].myhdr).name, 0); currfunc = p;
+								   if((p!=NULL) && strcmp(p->data, "#")) yyerror("Variable is not a function.");
 								   if (p != NULL && p->istype == 0) yyerror("Function already declared.");
 							           else if (p != NULL && p->istype == 1){ //we have header b4 body
 									//check if params are correct 
@@ -2508,7 +2596,7 @@ yyreduce:
 								   }
 								   else if (p == NULL) {
 									fprintf(fd, "%s:\n", (yyvsp[-3].myhdr).name); fprintf(fd3, "start %s\n", (yyvsp[-3].myhdr).name);
-									hashtbl_insert(currtb, (yyvsp[-3].myhdr).name, "func", scope, NULL, 0, currvis, NULL, &currlist);
+									hashtbl_insert(currtb, (yyvsp[-3].myhdr).name, "#", scope, NULL, 0, currvis, NULL, &currlist);
 									p = hashtbl_lookup(currtb, scope, (yyvsp[-3].myhdr).name, 0);
 									p->func->ret_type = (yyvsp[-3].myhdr).type;
 									p->func->header_declared = 1;
@@ -2537,23 +2625,23 @@ yyreduce:
 								  }
 								(yyval.myhdr) = (yyvsp[-3].myhdr);
 								 }
-#line 2541 "dkk.tab.c"
+#line 2629 "dkk.tab.c"
     break;
 
   case 125: /* class_func_header_start: typename func_class ID  */
-#line 654 "dkk.y"
-                                                 {struct hashnode_s *p =hashtbl_lookup(currtb, scope, (yyvsp[-1].str), currvis); currclass = p; if(p==NULL) yyerror("Class doesn't exist."); if((p = hashtbl_lookup(p->cla->classtb, 55555, (yyvsp[0].str), currvis)) == NULL) yyerror("Method doesn't exist."); if(strcmp(p->func->ret_type, (yyvsp[-2].str))) yyerror("Method type mismatch."); if(strcmp(p->data, "func")) yyerror("Member is not a method."); (yyval.node) = p;}
-#line 2547 "dkk.tab.c"
+#line 742 "dkk.y"
+                                                 {struct hashnode_s *p =hashtbl_lookup(currtb, scope, (yyvsp[-1].str), currvis); currclass = p; if(p==NULL) yyerror("Class doesn't exist."); if((p = hashtbl_lookup(p->cla->classtb, 55555, (yyvsp[0].str), currvis)) == NULL) yyerror("Method doesn't exist."); if(strcmp(p->func->ret_type, (yyvsp[-2].str))) yyerror("Method type mismatch."); if(strcmp(p->data, "#")) yyerror("Member is not a method."); (yyval.node) = p;}
+#line 2635 "dkk.tab.c"
     break;
 
   case 127: /* func_class: ID METH  */
-#line 656 "dkk.y"
+#line 744 "dkk.y"
                      {(yyval.str) = (yyvsp[-1].str);}
-#line 2553 "dkk.tab.c"
+#line 2641 "dkk.tab.c"
     break;
 
   case 128: /* parameter_list: parameter_list COMMA typename pass_variabledef  */
-#line 657 "dkk.y"
+#line 745 "dkk.y"
                                                                 {
 		id_list_t* n = malloc(sizeof(id_list_t));
                 n->id = (yyvsp[0].id);
@@ -2561,11 +2649,11 @@ yyreduce:
                 n->next = (yyvsp[-3].idlist);
                 (yyval.idlist) = n;
                 }
-#line 2565 "dkk.tab.c"
+#line 2653 "dkk.tab.c"
     break;
 
   case 129: /* parameter_list: typename pass_variabledef  */
-#line 665 "dkk.y"
+#line 753 "dkk.y"
                                             {
 		id_list_t* n = malloc(sizeof(id_list_t));
 		n->id = (yyvsp[0].id);
@@ -2573,189 +2661,189 @@ yyreduce:
 		n->next = NULL;
 		(yyval.idlist) = n;
 		}
-#line 2577 "dkk.tab.c"
+#line 2665 "dkk.tab.c"
     break;
 
   case 130: /* pass_variabledef: variabledef  */
-#line 672 "dkk.y"
+#line 760 "dkk.y"
                                {(yyval.id) = (yyvsp[0].id);}
-#line 2583 "dkk.tab.c"
+#line 2671 "dkk.tab.c"
     break;
 
   case 131: /* pass_variabledef: REFER ID  */
-#line 672 "dkk.y"
+#line 760 "dkk.y"
                                                      {
 		(yyval.id) = malloc(sizeof(id_t));
 		(yyval.id)->id = (yyvsp[0].str);
 		(yyval.id)->arr = malloc(sizeof(array_t));	
 		(yyval.id)->arr->dims = -1;	/* this is how you tell it that it's a reference*/}
-#line 2593 "dkk.tab.c"
+#line 2681 "dkk.tab.c"
     break;
 
   case 132: /* nopar_class_func_header: class_func_header_start LPAREN RPAREN  */
-#line 677 "dkk.y"
+#line 765 "dkk.y"
                                                                 {if((yyvsp[-2].node)->func != NULL) yyerror("Function header mismatch"); (yyval.node) = (yyvsp[-2].node);}
-#line 2599 "dkk.tab.c"
+#line 2687 "dkk.tab.c"
     break;
 
   case 137: /* declarations: declarations decltype typename variabledefs SEMI  */
-#line 681 "dkk.y"
+#line 769 "dkk.y"
                                                                 {int old_scope = scope; if((yyvsp[-3].ival)) scope = 0; var_decl((yyvsp[-1].idlist), (yyvsp[-2].str)); scope = old_scope;}
-#line 2605 "dkk.tab.c"
+#line 2693 "dkk.tab.c"
     break;
 
   case 138: /* declarations: decltype typename variabledefs SEMI  */
-#line 682 "dkk.y"
+#line 770 "dkk.y"
                                                      { int old_scope = scope; if((yyvsp[-3].ival)) scope = 0; var_decl((yyvsp[-1].idlist), (yyvsp[-2].str)); scope = old_scope;}
-#line 2611 "dkk.tab.c"
+#line 2699 "dkk.tab.c"
     break;
 
   case 139: /* decltype: STATIC  */
-#line 683 "dkk.y"
+#line 771 "dkk.y"
                   {(yyval.ival) = 1;}
-#line 2617 "dkk.tab.c"
+#line 2705 "dkk.tab.c"
     break;
 
   case 140: /* decltype: %empty  */
-#line 683 "dkk.y"
+#line 771 "dkk.y"
                               {(yyval.ival) = 0;}
-#line 2623 "dkk.tab.c"
+#line 2711 "dkk.tab.c"
     break;
 
   case 141: /* statements: statements statement  */
-#line 684 "dkk.y"
-                                  {reg = 0; reg2 = 0;}
-#line 2629 "dkk.tab.c"
+#line 772 "dkk.y"
+                                  {reg = 0; freg = 0; reg2 = 0; freg2= 0;}
+#line 2717 "dkk.tab.c"
     break;
 
   case 142: /* statements: statement  */
-#line 684 "dkk.y"
-                                                                   {reg = 0; reg2= 0;}
-#line 2635 "dkk.tab.c"
+#line 772 "dkk.y"
+                                                                                       {reg = 0; freg = 0; reg2= 0; freg2 = 0;}
+#line 2723 "dkk.tab.c"
     break;
 
   case 152: /* statement: SEMI  */
-#line 694 "dkk.y"
+#line 782 "dkk.y"
                {currtb = symtb;}
-#line 2641 "dkk.tab.c"
+#line 2729 "dkk.tab.c"
     break;
 
   case 153: /* expression_statement: general_expression SEMI  */
-#line 695 "dkk.y"
+#line 783 "dkk.y"
                                                {currtb = symtb;}
-#line 2647 "dkk.tab.c"
+#line 2735 "dkk.tab.c"
     break;
 
   case 154: /* if_statement: IF LPAREN general_expression if_mid RPAREN statement  */
-#line 696 "dkk.y"
+#line 784 "dkk.y"
                                                                                          {fprintf(fd, "L%d:\n", label_count); fprintf(fd3, "L%d:\n", label_count);}
-#line 2653 "dkk.tab.c"
+#line 2741 "dkk.tab.c"
     break;
 
   case 156: /* if_mid: %empty  */
-#line 698 "dkk.y"
-        {fprintf(fd, "bne,\t%s,\t0,\tL%d\n", lastname, ++label_count); fprintf(fd3, "bne %s, $0,\tL%d\n", lastname, label_count);}
-#line 2659 "dkk.tab.c"
+#line 786 "dkk.y"
+        {if(logical_case){logical_case = 0; fprintf(fd3, "esc%d:\n", ++label_count);}fprintf(fd, "bne,\t%s,\t0,\tL%d\n", lastname, ++label_count); fprintf(fd3, "bne %s, $0,\tL%d\n", lastname, label_count);}
+#line 2747 "dkk.tab.c"
     break;
 
   case 157: /* $@10: %empty  */
-#line 699 "dkk.y"
+#line 787 "dkk.y"
                                {fprintf(fd, "L%d:\n", ++label_count); fprintf(fd3, "L%d:\n", label_count); scope++;}
-#line 2665 "dkk.tab.c"
+#line 2753 "dkk.tab.c"
     break;
 
   case 158: /* $@11: %empty  */
-#line 699 "dkk.y"
-                                                                                                                                        {fprintf(fd, "bne,\t%s,\t0,\tL%d\n", lastname, ++label_count); fprintf(fd3, "bne %s, $0, L%d\n", lastname, label_count);}
-#line 2671 "dkk.tab.c"
+#line 787 "dkk.y"
+                                                                                                                                        {if(logical_case){logical_case = 0; fprintf(fd3, "esc%d:\n", ++label_count);}fprintf(fd, "bne,\t%s,\t0,\tL%d\n", lastname, ++label_count); fprintf(fd3, "bne %s, $0, L%d\n", lastname, label_count);}
+#line 2759 "dkk.tab.c"
     break;
 
   case 159: /* while_statement: WHILE LPAREN $@10 general_expression $@11 RPAREN statement  */
-#line 699 "dkk.y"
-                                                                                                                                                                                                                                                                                   {scope--; fprintf(fd, "jal,\t,\t,\tL%d\n", label_count-1); fprintf(fd3, "jal L%d\n", label_count-1); fprintf(fd, "L%d:\n", label_count); fprintf(fd3, "L%d:\n", label_count);}
-#line 2677 "dkk.tab.c"
+#line 787 "dkk.y"
+                                                                                                                                                                                                                                                                                                                                                               {scope--; fprintf(fd, "jal,\t,\t,\tL%d\n", label_count-1); fprintf(fd3, "jal L%d\n", label_count-1); fprintf(fd, "L%d:\n", label_count); fprintf(fd3, "L%d:\n", label_count);}
+#line 2765 "dkk.tab.c"
     break;
 
   case 160: /* $@12: %empty  */
-#line 700 "dkk.y"
+#line 788 "dkk.y"
                     {scope++;}
-#line 2683 "dkk.tab.c"
+#line 2771 "dkk.tab.c"
     break;
 
   case 161: /* $@13: %empty  */
-#line 700 "dkk.y"
+#line 788 "dkk.y"
                                                   {fprintf(fd, "L%d:\n", ++label_count); fprintf(fd3, "L%d:\n", label_count);}
-#line 2689 "dkk.tab.c"
+#line 2777 "dkk.tab.c"
     break;
 
   case 162: /* $@14: %empty  */
-#line 700 "dkk.y"
-                                                                                                                                       {fprintf(fd, "bne,\t%s,\t0,\tL%d\n", lastname, ++label_count); fprintf(fd3, "bne %s, $0, L%d\n", lastname, label_count); noprint=1;}
-#line 2695 "dkk.tab.c"
+#line 788 "dkk.y"
+                                                                                                                                       {if(logical_case){logical_case = 0; fprintf(fd3, "esc%d:\n", ++label_count);}fprintf(fd, "bne,\t%s,\t0,\tL%d\n", lastname, ++label_count); fprintf(fd3, "bne %s, $0, L%d\n", lastname, label_count); noprint=1;}
+#line 2783 "dkk.tab.c"
     break;
 
   case 163: /* $@15: %empty  */
-#line 700 "dkk.y"
-                                                                                                                                                                                                                                                                                         {noprint=0;}
-#line 2701 "dkk.tab.c"
+#line 788 "dkk.y"
+                                                                                                                                                                                                                                                                                                                                                                     {noprint=0;}
+#line 2789 "dkk.tab.c"
     break;
 
   case 164: /* for_statement: FOR $@12 LPAREN optexpr SEMI $@13 optexpr $@14 SEMI optexpr $@15 RPAREN statement  */
-#line 700 "dkk.y"
-                                                                                                                                                                                                                                                                                                                      {print_ir((yyvsp[-3].myexprlist)->exp->node); fprintf(fd, "jal,\t,\t,\tL%d\n", label_count-1); fprintf(fd3, "jal L%d\n", label_count-1); fprintf(fd, "L%d:\n", label_count); fprintf(fd3, "L%d:\n", label_count); scope--;}
-#line 2707 "dkk.tab.c"
+#line 788 "dkk.y"
+                                                                                                                                                                                                                                                                                                                                                                                                  {print_ir((yyvsp[-3].myexprlist)->exp->node); fprintf(fd, "jal,\t,\t,\tL%d\n", label_count-1); fprintf(fd3, "jal L%d\n", label_count-1); fprintf(fd, "L%d:\n", label_count); fprintf(fd3, "L%d:\n", label_count); scope--;}
+#line 2795 "dkk.tab.c"
     break;
 
   case 165: /* optexpr: general_expression  */
-#line 701 "dkk.y"
+#line 789 "dkk.y"
                              {(yyval.myexprlist) = (yyvsp[0].myexprlist);}
-#line 2713 "dkk.tab.c"
+#line 2801 "dkk.tab.c"
     break;
 
   case 166: /* optexpr: %empty  */
-#line 701 "dkk.y"
+#line 789 "dkk.y"
                                           {(yyval.myexprlist) = NULL;}
-#line 2719 "dkk.tab.c"
+#line 2807 "dkk.tab.c"
     break;
 
   case 167: /* return_statement: RETURN optexpr SEMI  */
-#line 702 "dkk.y"
-                                       {if((yyvsp[-1].myexprlist)->exp->name != NULL){if((yyvsp[-1].myexprlist) != NULL) fprintf(fd, "\n=,\t%s,\t,\t$a0\n", (yyvsp[-1].myexprlist)->exp->name); if((yyvsp[-1].myexprlist)->exp->name[0] != '$')fprintf(fd3, "li $a0 %s\n", (yyvsp[-1].myexprlist)->exp->name); else if((yyvsp[-1].myexprlist)->exp->name[0] == '$' || (yyvsp[-1].myexprlist)->exp->name[0] == 't') fprintf(fd3, "mv $a0, %s\n", (yyvsp[-1].myexprlist)->exp->name); else fprintf(fd3, "li $a0, %s\n", (yyvsp[-1].myexprlist)->exp->name);}}
-#line 2725 "dkk.tab.c"
+#line 790 "dkk.y"
+                                       {if((yyvsp[-1].myexprlist)->exp->name != NULL){if((yyvsp[-1].myexprlist) != NULL) fprintf(fd, "\n=,\t%s,\t,\t$a0\n", (yyvsp[-1].myexprlist)->exp->name);if(logical_case){logical_case = 0; fprintf(fd3, "esc%d:\n", ++label_count);} if((yyvsp[-1].myexprlist)->exp->name[0] != '$')fprintf(fd3, "li $a0 %s\n", (yyvsp[-1].myexprlist)->exp->name); else if((yyvsp[-1].myexprlist)->exp->name[0] == '$' || (yyvsp[-1].myexprlist)->exp->name[0] == 't') fprintf(fd3, "mv $a0, %s\n", (yyvsp[-1].myexprlist)->exp->name); else fprintf(fd3, "li $a0, %s\n", (yyvsp[-1].myexprlist)->exp->name);}}
+#line 2813 "dkk.tab.c"
     break;
 
   case 177: /* $@16: %empty  */
-#line 708 "dkk.y"
+#line 796 "dkk.y"
                       {scope++;}
-#line 2731 "dkk.tab.c"
+#line 2819 "dkk.tab.c"
     break;
 
   case 178: /* $@17: %empty  */
-#line 708 "dkk.y"
+#line 796 "dkk.y"
                                                  {hashtbl_get(currtb, scope);scope--;}
-#line 2737 "dkk.tab.c"
+#line 2825 "dkk.tab.c"
     break;
 
   case 180: /* $@18: %empty  */
-#line 709 "dkk.y"
-                           { header_decl_check(currtb); scope++;}
-#line 2743 "dkk.tab.c"
+#line 797 "dkk.y"
+                           { header_decl_check(currtb); scope++;fpoff = 0;}
+#line 2831 "dkk.tab.c"
     break;
 
   case 181: /* main_function: main_header $@18 LBRACE decl_statements RBRACE  */
-#line 709 "dkk.y"
-                                                                                                {scope--;/*hashtbl_get(currtb, scope);*/return 0;}
-#line 2749 "dkk.tab.c"
+#line 797 "dkk.y"
+                                                                                                          {scope--;/*hashtbl_get(currtb, scope);*/return 0;}
+#line 2837 "dkk.tab.c"
     break;
 
   case 182: /* main_header: INT MAIN LPAREN RPAREN  */
-#line 710 "dkk.y"
+#line 798 "dkk.y"
                                     {currfunc = hashtbl_lookup(symtb, 0, "main", 0); printf("%p\n", currfunc); fprintf(fd, "\nmain:\n"); fprintf(fd3, "start main\n");}
-#line 2755 "dkk.tab.c"
+#line 2843 "dkk.tab.c"
     break;
 
 
-#line 2759 "dkk.tab.c"
+#line 2847 "dkk.tab.c"
 
       default: break;
     }
@@ -2948,7 +3036,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 711 "dkk.y"
+#line 799 "dkk.y"
 
 void header_decl_check(HASHTBL *hashtbl) {
 	hash_size i;
@@ -2956,7 +3044,7 @@ void header_decl_check(HASHTBL *hashtbl) {
 	for (i = 0; i < hashtbl->size; ++i) {
 		node = hashtbl->nodes[i];
 		while(node) {
-			if(!strcmp(node->data, "func") && (node->func->header_declared == 0) && (strcmp(node->key, "main")))
+			if(!strcmp(node->data, "#") && (node->func->header_declared == 0) && (strcmp(node->key, "main")))
 				yyerror("Function header without declaration.");
 			else node = node->next;
 	}}}
@@ -2968,12 +3056,15 @@ void var_decl(id_list_t *var_list, char *data) {
 			yyerror("Variable double declaration.");
 		else if(data == NULL) {hashtbl_insert(currtb, curr->id->id, curr->id->data, scope, curr->id->arr, 0, currvis,curr->id->init_vals, &currlist);printf("data = %s, key = %s\n", data, curr->id->id);}
 		else {hashtbl_insert(currtb, curr->id->id, data, scope, curr->id->arr, 0, currvis, curr->id->init_vals, &currlist);printf("data = %s, key = %s\n", data, curr->id->id);}
-		if(currfunc != NULL)
+		if(currfunc != NULL && scope != 0)
 			currfunc->funcsize = currfunc->funcsize + findsize2(hashtbl_lookup(currtb, scope, curr->id->id, 0), currtb, scope);
-		fpoff = fpoff + findsize2(hashtbl_lookup(currtb, scope, curr->id->id, 0), currtb, scope);
+		fpoff = fpoff + findsize2(hashtbl_lookup(currtb, scope, curr->id->id, 3), currtb, scope);
+		printf("fpoff for %s is %d\n", curr->id->id, fpoff);
 		bindf *temp = currlist;
+		bindf *old;
+		if(currfunc == NULL && scope == 0){ currfunc = malloc(sizeof(struct hashnode_s)); currfunc->key = strdup("global"); currfunc->data = NULL;}
 		while(temp && currfunc){
-			if(!strcmp(temp->name, currfunc->key)){
+			if(!strcmp(&temp->name[1], currfunc->key)){
 				bindv *new = malloc(sizeof(bindv));
 				new->scope = scope;
 				new->name = curr->id->id;
@@ -2982,13 +3073,15 @@ void var_decl(id_list_t *var_list, char *data) {
 				if(data == NULL)
 					new->type = curr->id->data;
 				else new->type = data;
+				if (scope  == 0){ old = temp; temp = currlist;}
 				if (temp->head == NULL)
 					temp->head = new;
 				else {
 					bindv* last = temp->head;
-					while (temp->next)
-						temp = temp->next;
+					while (last->next)
+						last = last->next;
 					last->next = new;
+					if(scope==0)temp = old;
 				}
 			}
 			temp = temp->next;
@@ -2996,6 +3089,21 @@ void var_decl(id_list_t *var_list, char *data) {
 		curr = curr->next;
 		prv = curr;
 	}
+	if( currfunc != NULL && !strcmp(currfunc->key, "global") && currfunc->data == NULL){free(currfunc->key);free(currfunc); currfunc = NULL;}
+	print_list();
+}
+void print_list(){
+bindf *temp = currlist;
+bindv *temp2;
+while (temp){
+	printf("IN %s:\n", temp->name);
+	temp2 = temp->head;
+	while(temp2){
+		printf("\t%s, o=%d,\n", temp2->name, temp2->offset);
+		temp2 = temp2->next;
+	}
+	temp = temp->next;
+}
 }
 void yyerror(const char *s){
 	printf("error: %s in line: %d\n", s, yylineno);
@@ -3034,10 +3142,7 @@ void print_tree(const asd_t *root){
 }
 asd_t *create_node(const char *s, asd_t *lleaf, asd_t *rleaf) {
 	asd_t *node = malloc(sizeof(asd_t));
-
-	node->name = malloc(strlen(s) + 1);
-	strcpy(node->name, s);
-
+	if(s != NULL) {node->name = malloc(strlen(s) + 1); strcpy(node->name, s);}
 	node->lchild = lleaf;
 	node->rchild = rleaf;
 
@@ -3047,8 +3152,9 @@ char *print_ir(const asd_t *root) {
     if (!root) return NULL;
 
     if (root->lchild == NULL && root->rchild == NULL) {
-        char *name = malloc(sizeof(char) * (strlen(root->name) + 1));
-        strcpy(name, root->name);
+	char *name;
+	name = malloc(sizeof(char) * (strlen(root->name) + 1));
+	strcpy(name, root->name);
 	lastname = name;
         return name;
     }
@@ -3062,15 +3168,16 @@ char *print_ir(const asd_t *root) {
 	fprintf(fd3, "\n");	
     char *name = malloc(sizeof(char) * 10);
     sprintf(name, "$t%d", reg);
-	print_assembly(name, lname, rname, root, reg);
+	print_assembly(name, lname, rname, root);
 	lastname = lname;
 	return NULL;
     }
     else if(lname && !rname) {
         fprintf(fd, "%s,\t%s,\t,\t%s\n", root->name, lname, lname);
     char *name = malloc(sizeof(char) * 10);
-    sprintf(name, "$t%d", reg);
-	print_assembly(name, lname, rname, root, reg);
+	if(strstr(lname, ".") != NULL) sprintf(name, "$f%d", freg);
+   	else sprintf(name, "$t%d", reg);
+	print_assembly(name, lname, rname, root);
 	lastname = lname;
 	return NULL;
     }
@@ -3083,14 +3190,28 @@ char *print_ir(const asd_t *root) {
 	if(i == NULL) i = strstr(temp, "gp");
 	if(i != NULL)*i = '\0';
 	if(lname[0] != '$'){
-		fprintf(fd3, "addi $t%d, %s, %s\n", ++reg, &lname[i-temp], &temp[4]);
-		fprintf(fd3, "sw %s, $t%d\n", rname, reg);
+		fprintf(fd3, "addi $t%d, %s, %s\n", ++reg2, &lname[i-temp], &temp[4]);
+		if((atoi(rname) || rname[0] != '0') && strstr(rname, ".") != NULL){
+			fprintf(fd3, "li $t%d, %s\n", ++reg2, rname);
+			fprintf(fd3, "fmv.w.x $f%d, $t%d\n", ++freg2, reg2);
+			fprintf(fd3, "fsw $f%d, 0($t%d)\n", freg2, reg2-1);
+		}
+		else if(rname[0] == '$' && rname[1] == 'f'){
+			fprintf(fd3, "fsw %s, 0($t%d)\n", rname, reg2);
+		}
+		else if(rname[0] == '$' && rname[1] != 'f'){
+			fprintf(fd3, "fcvt.s.w $f%d, %s\n", ++freg2, rname);
+			fprintf(fd3, "fsw $f%d, 0($t%d)\n", freg2, reg2);
+		}
+		else{
+			fprintf(fd3, "sw %s, 0($t%d)\n", rname, reg2);
+		}
 	}
-	else if(rname[0] == 't' || rname[0] == '$') fprintf(fd3, "mv %s, %s\n", lname, rname);
+	else if(rname[0] == '$' || lname[0] == '$'){ if((rname[1] == 't' || rname[1] == 'a') && (lname[1] == 't' || lname[1] == 'a')) fprintf(fd3, "mv %s, %s\n", lname, rname); else if(lname[1] == 'f' && rname[1] == 'f') fprintf(fd3, "f.mv %s, %s\n", lname, rname); else if(lname[1] == 'f'){fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)strtof(rname, NULL)); fprintf(fd3, "fmv.w.x $f%d, $t%d\n", ++freg2, reg2);}} 
 	else fprintf(fd3, "li %s, %s\n", lname, rname);
     char *name = malloc(sizeof(char) * 10);
     sprintf(name, "$t%d", reg);
-	print_assembly(name, lname, rname, root, reg);
+	print_assembly(name, lname, rname, root);
 	lastname = lname;
         return NULL;
     }
@@ -3101,83 +3222,233 @@ char *print_ir(const asd_t *root) {
     char *name = malloc(sizeof(char) * 10);
     sprintf(name, "$t%d", reg);
     fprintf(fd, "%s,\t%s,\t%s,\t%s\n", root->name, lname, rname, name);
-	print_assembly(name, lname, rname, root, reg);
+	print_assembly(name, lname, rname, root);
     lastname = name;
     return name;
 }
-void print_assembly(char *name, char* lname, char* rname, const asd_t *root, int reg){
+void print_assembly(char *name, char* lname, char* rname, const asd_t *root){
+if((logical_case == 1) && (strcmp(root->name, "&&") && strcmp(root->name, "||")))
+	fprintf(fd3, "esc%d:\n", ++label_count);
+logical_case = 0;
 if(*root->name == '+'){
-		if(is_number(lname) && is_number(rname))
-			fprintf(fd3, "li %s, %d\n", name, atoi(lname) + atoi(rname));
-		else if(is_number(lname))
-			fprintf(fd3, "addi %s, %s, %d\n", name, rname, atoi(lname)); // REVERSED
-		else if(is_number(rname))
-			fprintf(fd3, "addi %s, %s, %d\n", name, lname, atoi(rname));
-		else fprintf(fd3, "add %s, %s, %s\n", name, lname, rname);
+		if((lname[0]=='0' && rname[0] == '0') ||(atoi(lname) && atoi(rname))){
+			if(strstr(rname, ".")!=NULL || strstr(lname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)(strtof(lname, NULL) + strtof(rname, NULL)));
+				fprintf(fd3, "fmv.w.x %s, $t%d\n", name, reg2);
+			}
+			else fprintf(fd3, "li %s, %d\n", name, atoi(lname) + atoi(rname));
+		}
+		else if(atoi(lname) || lname[0] == '0'){
+			if(strstr(lname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)strtof(lname, NULL));
+				fprintf(fd3, "fmv.w.x $f%d, $t%d\n", ++freg2, reg2);
+				fprintf(fd3, "f.add.s %s, %s, $f%d\n", name, rname, freg2);
+			}
+			else fprintf(fd3, "addi %s, %s, %d\n", name, rname, atoi(lname)); // REVERSED
+		}
+		else if(atoi(rname) || rname[0] == '0'){
+			if(strstr(rname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)strtof(rname, NULL));
+				fprintf(fd3, "fmv.w.x $f%d, $t%d\n", ++freg2, reg2);
+				fprintf(fd3, "f.add.s %s, %s, $f%d\n", name, lname, freg2);
+			}
+			else fprintf(fd3, "addi %s, %s, %d\n", name, lname, atoi(rname));
+		}
+		else {
+			if(name[1] = 'f') fprintf(fd3, "f.add.s %s, %s, %s\n",name, lname, rname);
+			else fprintf(fd3, "add %s, %s, %s\n", name, lname, rname);
+		}
 	}
 	else if(*root->name == '-'){
-		if(is_number(lname) && is_number(rname))
-			fprintf(fd3, "li %s, %d\n", name, atoi(lname) - atoi(rname));
-		else if(is_number(lname))
-			fprintf(fd3, "subi %s, %s, %d\n", name, rname, atoi(lname)); // REVERSED
-		else if(is_number(rname))
+		if((lname[0]=='0' && rname[0] == '0') || (atoi(lname) && atoi(rname))){
+			if(strstr(rname, ".")!=NULL || strstr(lname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)(strtof(lname, NULL) - strtof(rname, NULL)));
+				fprintf(fd3, "fmv.w.x %s, $t%d\n", name, reg2);
+			}
+			else fprintf(fd3, "li %s, %d\n", name, atoi(lname) - atoi(rname));
+		}
+		else if(atoi(lname) || lname[0] == '0'){
+			if(strstr(lname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)strtof(lname, NULL));
+				fprintf(fd3, "fmv.w.x $f%d, $t%d\n", ++freg2, reg2);
+				fprintf(fd3, "f.sub.s %s, $f%d, %s\n", name, freg2, rname);
+			}
+			fprintf(fd3, "li $t%d, %d", ++reg2, atoi(lname));
+			fprintf(fd3, "sub %s, $t%d, %s\n", name, reg2, rname);
+		}
+		else if(atoi(rname) || rname[0] == '0'){
+			if(strstr(rname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)strtof(rname, NULL));
+				fprintf(fd3, "fmv.w.x $f%d, $t%d\n", ++freg2, reg2);
+				fprintf(fd3, "f.sub.s %s, %s, $f%d\n", name, lname, freg2);
+			}
 			fprintf(fd3, "subi %s, %s, %d\n", name,  lname, atoi(rname));
-		else fprintf(fd3, "sub %s, %s, %s\n", name, lname, rname);
+		}
+		else{
+			if(name[1] == 'f') fprintf(fd3, "f.sub.s %s, %s, %s\n", name, lname, rname);
+			else fprintf(fd3, "sub %s, %s, %s\n", name, lname, rname);
+		}
 	}
 	else if(*root->name == '*'){
-		if(is_number(lname) && is_number(rname))
+		if((lname[0]=='0' && rname[0] == '0') || (atoi(lname) && atoi(rname))){
+			if(strstr(rname, ".")!=NULL || strstr(lname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)(strtof(lname, NULL) * strtof(rname, NULL)));
+				fprintf(fd3, "fmv.w.x %s, $t%d\n", name, reg2);
+			}
 			fprintf(fd3, "li %s, %d\n", name, atoi(lname) * atoi(rname));
-		else if(is_number(lname)){
-			fprintf(fd3, "li $t%d %d", reg, atoi(lname));
-    			sprintf(name, "$t%d", ++reg);
-			fprintf(fd3, "mul %s, $t%d, %s\n", name, reg-1, rname);
 		}
-		else if(is_number(rname)){
-			fprintf(fd3, "li $t%d %d", reg, atoi(rname));
-    			sprintf(name, "$t%d", ++reg);
-			fprintf(fd3, "mul %s, %s, $t%d\n", name,  lname, reg-1);
+		else if(atoi(lname) || lname[0] == '0'){
+			if(strstr(lname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)strtof(lname, NULL));
+				fprintf(fd3, "fmv.w.x $f%d, $t%d\n", ++freg2, reg2);
+				fprintf(fd3, "f.mul.s %s, $f%d, %s\n", name, freg2, rname);
+			}
+			fprintf(fd3, "li $t%d %d", reg2, atoi(lname));
+    			sprintf(name, "$t%d", ++reg2);
+			fprintf(fd3, "mul %s, $t%d, %s\n", name, reg2-1, rname);
 		}
-		else fprintf(fd3, "mul %s, %s, %s\n", name, lname, rname);
+		else if(atoi(rname) || rname[0] == '0'){
+			if(strstr(rname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)strtof(rname, NULL));
+				fprintf(fd3, "fmv.w.x $f%d, $t%d\n", ++freg2, reg2);
+				fprintf(fd3, "f.mul.s %s, %s, $f%d\n", name, lname, freg2);
+			}
+			fprintf(fd3, "li $t%d %d", reg2, atoi(rname));
+    			sprintf(name, "$t%d", ++reg2);
+			fprintf(fd3, "mul %s, %s, $t%d\n", name,  lname, reg2-1);
+		}
+		else {
+			if(name[1] == 'f') fprintf(fd3, "f.mul.s %s, %s, %s\n", name, lname, rname);
+			else fprintf(fd3, "mul %s, %s, %s\n", name, lname, rname);
+		}
 	}
 	else if(*root->name == '/'){
-		if(is_number(lname) && is_number(rname))
+		if((lname[0]=='0' && rname[0] == '0') || (atoi(lname) && atoi(rname))){
+			if(strstr(rname, ".")!=NULL || strstr(lname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)(strtof(lname, NULL) / strtof(rname, NULL)));
+				fprintf(fd3, "fmv.w.x %s, $t%d\n", name, reg2);
+			}
 			fprintf(fd3, "li %s, %d\n", name, atoi(lname) / atoi(rname));
-		else if(is_number(lname)){
-			fprintf(fd3, "li $t%d %d", reg, atoi(lname));
-    			sprintf(name, "$t%d", ++reg);
-			fprintf(fd3, "div %s, $t%d, %s\n", name, reg-1, rname);
 		}
-		else if(is_number(rname)){
-			fprintf(fd3, "li $t%d %d", reg, atoi(rname));
-    			sprintf(name, "$t%d", ++reg);
-			fprintf(fd3, "div %s, %s, $t%d\n", name,  lname, reg-1);
+		else if(atoi(lname) || lname[0] == '0'){
+			if(strstr(lname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)strtof(lname, NULL));
+				fprintf(fd3, "fmv.w.x $f%d, $t%d\n", ++freg2, reg2);
+				fprintf(fd3, "f.div.s %s, $f%d, %s\n", name, freg2, rname);
+			}
+			fprintf(fd3, "li $t%d %d", reg2, atoi(lname));
+    			sprintf(name, "$t%d", ++reg2);
+			fprintf(fd3, "div %s, $t%d, %s\n", name, reg2-1, rname);
 		}
-		else fprintf(fd3, "div %s, %s, %s\n", name, lname, rname);
+		else if(atoi(rname) || rname[0] == '0'){
+			if(strstr(rname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)strtof(rname, NULL));
+				fprintf(fd3, "fmv.w.x $f%d, $t%d\n", ++freg2, reg2);
+				fprintf(fd3, "f.div.s %s, %s, $f%d\n", name, lname, freg2);
+			}
+			fprintf(fd3, "li $t%d %d", reg2, atoi(rname));
+    			sprintf(name, "$t%d", ++reg2);
+			fprintf(fd3, "div %s, %s, $t%d\n", name,  lname, reg2-1);
+		}
+		else{
+			if(name[1] == 'f') fprintf(fd3, "f.div.s %s, %s, %s\n", name, lname, rname);
+			else fprintf(fd3, "div %s, %s, %s\n", name, lname, rname);
+		}
 	}
 	else if(*root->name == '%'){
-		if(is_number(lname) && is_number(rname))
+		if((lname[0]=='0' && rname[0] == '0') || (atoi(lname) && atoi(rname))){
 			fprintf(fd3, "li %s, %d\n", name, atoi(lname) % atoi(rname));
-		else if(is_number(lname)){
-			fprintf(fd3, "li $t%d %d", reg, atoi(lname));
-    			sprintf(name, "$t%d", ++reg);
-			fprintf(fd3, "mod %s, $t%d, %s\n", name, reg-1, rname);
 		}
-		else if(is_number(rname)){
-			fprintf(fd3, "li $t%d %d", reg, atoi(rname));
-    			sprintf(name, "$t%d", ++reg);
-			fprintf(fd3, "mod %s, %s, $t%d\n", name,  lname, reg-1);
+		else if(atoi(lname) || lname[0] == '0'){
+			fprintf(fd3, "li $t%d %d", reg2, atoi(lname));
+    			sprintf(name, "$t%d", ++reg2);
+			fprintf(fd3, "rem %s, $t%d, %s\n", name, reg2-1, rname);
 		}
-		else fprintf(fd3, "mod %s, %s, %s\n", name, lname, rname);
+		else if(atoi(rname) || rname[0] == '0'){
+			fprintf(fd3, "li $t%d %d", reg2, atoi(rname));
+    			sprintf(name, "$t%d", ++reg2);
+			fprintf(fd3, "rem %s, %s, $t%d\n", name,  lname, reg2-1);
+		}
+		else fprintf(fd3, "rem %s, %s, %s\n", name, lname, rname);
 	}
-	else if(*root->name == '='){
-		if(is_number(lname) && is_number(rname))
-			fprintf(fd3, "li $t%d, %d\n", ++reg, atoi(lname) - atoi(rname));
-		else if(is_number(lname))
-			fprintf(fd3, "subi $t%d, %s, %d\n", ++reg, rname, atoi(lname));
-		else if(is_number(rname))
-			fprintf(fd3, "subi $t%d, %s, %d\n", ++reg, lname, atoi(rname));
-		else fprintf(fd3, "sub $t%d, %s, %s\n", ++reg, lname, rname);
-
+	else if(!strcmp(root->name, "==") || !strcmp(root->name, ">=") || !strcmp(root->name, "<=") || !strcmp(root->name, ">") || !strcmp(root->name, "<") || !strcmp(root->name, "!=")){
+		if((lname[0]=='0' && rname[0] == '0') || (atoi(lname) && atoi(rname))){
+			if(strstr(rname, ".")!=NULL || strstr(lname, ".")!=NULL)
+			fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)(strtof(lname, NULL) - strtof(rname, NULL)));
+			else fprintf(fd3, "li $t%d, %d\n", ++reg2, atoi(lname) - atoi(rname));
+		}
+		else if(atoi(lname) || lname[0] == '0'){
+			if(strstr(lname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)strtof(lname, NULL));
+				fprintf(fd3, "fmv.w.x $f%d, $t%d\n", ++freg2, reg2);
+				if(rname[0] == '$'){
+					fprintf(fd3, "f.sub.s $f%d, $f%d, %s\n", ++freg2, freg2, rname);
+					fprintf(fd3, "fcvt.w.s %s, $f%d\n", name, freg2);
+				}
+			}
+			fprintf(fd3, "subi $t%d, %s, %d\n", ++reg2, rname, atoi(lname));
+		}
+		else if(atoi(rname) || rname[0] == '0'){
+			if(strstr(rname, ".")!=NULL){
+				fprintf(fd3, "li $t%d, 0x%x\n", ++reg2, (uint32_t)strtof(rname, NULL));
+				fprintf(fd3, "fmv.w.x $f%d, $t%d\n", ++freg2, reg2);
+				if(rname[0] == '$'){
+					fprintf(fd3, "f.sub.s $f%d, $f%d, %s\n", ++freg2, freg2, lname);
+					fprintf(fd3, "fcvt.w.s %s, $f%d\n", name, freg2);
+				}
+			}
+			fprintf(fd3, "subi $t%d, %s, %d\n", ++reg2, lname, atoi(rname));
+		}
+		else if(rname[0] == '$' && lname[0] == '$'){
+			if(rname[1] == 'f' && lname[1] == 'f')
+				fprintf(fd3, "f.sub.s $f%d, %s, %s\n", ++freg2, lname, rname);
+			else fprintf(fd3, "sub $t%d, %s, %s\n", ++reg2, lname, rname);
+		}
+		else if(rname[0] == '$')
+			fprintf(fd3, "subi $t%d, %s, %d\n", ++reg2, rname, *lname);
+		else if(lname[0] == '$')
+			fprintf(fd3, "subi $t%d, %s, %d\n", ++reg2, lname, *rname);
+		else fprintf(fd3, "li $t%d, %d\n", ++reg2, *lname - *rname);
+		if(!strcmp(root->name, "=="))
+			fprintf(fd3, "xori $t%d, $t%d, 1\n", reg2, reg2);
+		else if(!strcmp(root->name, ">"))
+			fprintf(fd3, "slt $t%d, $t%d, $0\n", reg2, reg2);
+		else if(!strcmp(root->name, "<")){
+			fprintf(fd3, "xori $t%d, $t%d, 1\n", reg2, reg2);
+			fprintf(fd3, "slt $t%d, $t%d, $0\n", reg2, reg2);
+		}
+		else if(!strcmp(root->name, ">=")){
+			fprintf(fd3, "subi $t%d, $t%d, 1\n", reg2, reg2);
+			fprintf(fd3, "slt $t%d, $t%d, $0\n", reg2, reg2);
+		}
+		else if(!strcmp(root->name, "<=")){
+			fprintf(fd3, "addi $t%d, $t%d, 1\n", reg2, reg2);
+			fprintf(fd3, "xori $t%d, $t%d, 1\n", reg2, reg2);
+			fprintf(fd3, "slt $t%d, $t%d, $0\n", reg2, reg2);
+		}
+		//fprintf(fd3, "slt $t%d, $t%d, $0\n", reg2, reg2);
+	}
+	else if(!strcmp(root->name, "&&") ||  !strcmp(root->name, "||")){
+		logical_case = 1;
+		if(lname[0] == '$' && rname[0] == '$'){
+			if(!strcmp(root->name, "&&"))
+				fprintf(fd3, "and $t%d, %s, %s\n", ++reg2, lname, rname);
+			else fprintf(fd3, "or $t%d, %s, %s\n", ++reg2, lname, rname);
+		}
+		else if(lname[0] == '$'){
+			if(!strcmp(root->name, "&&"))
+				fprintf(fd3, "andi $t%d, %s, %d\n", ++reg2, lname, atoi(rname));
+			else fprintf(fd3, "ori $t%d, %s, %d\n", ++reg2, lname, atoi(rname));
+		}
+		else if(rname[0] == '$'){
+			if(!strcmp(root->name, "&&"))
+				fprintf(fd3, "andi $t%d, %s, %d\n", ++reg2, rname, atoi(lname));
+			else fprintf(fd3, "ori $t%d, %s, %d\n", ++reg2, rname, atoi(lname));
+		}
+		else if(!strcmp(root->name, "&&")) fprintf(fd3, "li $t%d, %d\n", ++reg2, atoi(lname) && atoi(rname));
+		else fprintf(fd3, "li $t%d %d\n", ++reg2, atoi(lname) || atoi(rname));
+		if(!strcmp(root->name, "&&")) fprintf(fd3, "beq $t%d, $0, esc%d\n", reg2, label_count+1);
+		else fprintf(fd3, "bneq $t%d, $0, esc%d\n", reg2, label_count+1);
 	}
 }
 void patchinc(){
@@ -3190,6 +3461,8 @@ void patchinc(){
 	postlist = NULL;
 }
 int findsize(struct hashnode_s *n){ 
+	if(n== NULL || n->data == NULL)
+		return 0;
 	if (!strcmp(n->data,"int"))
 		return sizeof(int);
 	else if (!strcmp(n->data,"char"))
@@ -3206,9 +3479,8 @@ int findsize(struct hashnode_s *n){
 bindv *findoff(char *fname, char *name){
 	bindf *temp = currlist;
 	bindv *temp2;
-	printf("\n\n%d\n", temp == NULL);
 	while(temp){
-		printf("fname = %s\n", temp->name);
+		printf("name = %s\n", temp->name);
 		if(!strcmp(temp->name, fname)){
 			temp2 = temp->head;
 			while(temp2){
@@ -3216,29 +3488,71 @@ bindv *findoff(char *fname, char *name){
 				if(!strcmp(name, temp2->name))
 					return temp2;
 				temp2 = temp2->next;
+				if(temp2 == NULL && fname[0] == 'c'){
+					char *str = malloc(20);
+					struct hashnode_s *k = hashtbl_lookup(symtb, scope, &fname[1], currvis);
+					sprintf(str, "c%s", k->cla->superclass);
+					return findoff(str, name);
+				}
 			}
 		}
 		temp = temp->next;
 	}
 	return NULL;
 }
-int is_number(char *s){
-	char *end;
-	strtod(s, &end);
-	return *s != '\0' && *end == '\0';
+void normalize_node(asd_t **tmp1, asd_t **tmp2, asd_t *node1, asd_t *node2, char *name1, char *name2){
+	if(node1 == NULL)*tmp1=create_node(name1, NULL, NULL);
+	else *tmp1=node1;
+	if(node2 == NULL)*tmp2=create_node(name2, NULL, NULL);
+	else *tmp2=node2;
 }
-void normalize_node(asd_t *tmp1, asd_t *tmp2, asd_t *node1, asd_t *node2, char *name1, char *name2){
-	if(node1 == NULL)tmp1=create_node(name1, NULL, NULL);
-	else tmp1=node1;
-	if(node2 == NULL)tmp2=create_node(name2, NULL, NULL);
-	else tmp2=node2;
+void inherit(struct hashnode_s *og){
+	struct hashnode_s *tmp1 = og;
+	bindf *k = currlist;
+	bindv *tmp2, *tmp3;
+	while(k != NULL){
+		if(!strcmp(k->name, currfunc->key))
+			break;
+		k = k->next;
+	}
+	if(k != NULL)
+		tmp3 = k->head;
+	while(tmp3->next != NULL)
+		tmp3 = tmp3->next;
+	while(tmp1 != NULL && k != NULL){
+		k = currlist;
+		while(k != NULL){
+			if(!strcmp(k->name, tmp1->cla->superclass))
+				break;
+			k = k->next;
+		}
+		if(k!=NULL)
+			tmp2 = k->head;
+		while(tmp2 != NULL && k != NULL){
+			tmp3->next->scope = tmp2->scope;
+			tmp3->next->name = strdup(tmp2->name);
+			tmp3->next->type = strdup(tmp2->type);
+			tmp3->next->offset = tmp2->offset;
+			tmp3->next->next = NULL;
+			tmp2 = tmp2->next;
+			tmp3= tmp3->next;
+		}
+		tmp1 = hashtbl_lookup(currtb, scope, tmp1->cla->superclass, currvis);
+	}
 }
 int main(){
 	fd = fopen("ir.dkk", "w");
 	fd3 = fopen("irir.asm", "w");
 	symtb = hashtbl_create(10, NULL);
-	hashtbl_insert(symtb, "main", "func", 0, NULL, 1, 0, NULL, &currlist);
+	hashtbl_insert(symtb, "main", "#", 0, NULL, 1, 0, NULL, &currlist);
 	currtb = symtb;
+	bindf *global = malloc(sizeof(bindf));
+	global->name = strdup("gglobal");
+	bindf *m = malloc(sizeof(bindf));
+	global->next = m;
+	m->name = strdup("fmain");
+	m->next = NULL;
+	currlist = global;
 	int res = yyparse();
 	FILE *fd_asm = fopen("out.asm", "w");
 	print_top(fd_asm, symtb);

@@ -106,6 +106,22 @@ int hashtbl_insert(HASHTBL *hashtbl, const char *key, char* data ,int scope, arr
 	if(!strcmp(data, "class")){
 		node->cla = malloc(sizeof(class_t));
 		node->cla->classtb = hashtbl_create(5, NULL);	
+		bindf* tmp = malloc(sizeof(bindf));
+		tmp->next = NULL;
+		tmp->head = NULL;
+		tmp->name = malloc(20);
+		tmp->name[0] = 'c';
+		strcpy(&tmp->name[1], key);
+ 		//tmp->name = strdup(key);
+		
+		if (*list == NULL)
+			*list = tmp;
+		else {
+			bindf *next = *list;
+			while (next->next)
+				next = next->next;
+			next->next = tmp;		
+		}
 	}
 	if(!strcmp(data, "union")){
 		node->un = malloc(sizeof(union_t));
@@ -113,13 +129,16 @@ int hashtbl_insert(HASHTBL *hashtbl, const char *key, char* data ,int scope, arr
 	}
 	else
 		node->un = NULL; 
-	if(!strcmp(data, "func")){
+	if(!strcmp(data, "#")){
 		node->func = malloc(sizeof(func_t));	
 		node->funcsize = 8;
 		bindf* tmp = malloc(sizeof(bindf));
 		tmp->next = NULL;
 		tmp->head = NULL;
- 		tmp->name = strdup(key);
+		tmp->name = malloc(20);
+		tmp->name[0] = 'f';
+		strcpy(&tmp->name[1], key);
+ 		//tmp->name = strdup(key);
 		
 		if (*list == NULL)
 			*list = tmp;
@@ -216,10 +235,23 @@ void *hashtbl_get(HASHTBL *hashtbl, int scope)
 	return NULL;
 }
 int findsize2(struct hashnode_s *n, HASHTBL *hashtbl, int scope){
-	int mul = 1;
+	int mul = 1, tally=0;
+	struct hashnode_s *temp;
+	if(n == NULL)
+		return 0;
 	if(n->arr != NULL)
 		for(int i = 0; i < n->arr->dims; i++)
 			mul = mul * n->arr->dim_size[i];
+	if(n->cla != NULL){
+		for(int i=0; i < 5; i++){
+			temp = n->cla->classtb->nodes[i];
+			while(temp){
+				tally = tally + findsize2(temp, n->cla->classtb, scope);
+				temp = temp->next;
+			}
+		}
+	}
+				 
 	if (!strcmp(n->data,"int"))
 		return sizeof(int)*mul;
 	else if (!strcmp(n->data,"char"))
@@ -229,7 +261,7 @@ int findsize2(struct hashnode_s *n, HASHTBL *hashtbl, int scope){
 	else {
 		struct hashnode_s *tmp;
 		tmp = hashtbl_lookup(hashtbl, scope, n->data, 5);
-		return (findsize2(tmp, hashtbl, scope) * mul);
+		return (findsize2(tmp, hashtbl, scope) * mul + tally);
 	} 
 	return 0;
 }
@@ -260,7 +292,7 @@ void print_top(FILE* fd, HASHTBL *hashtbl){
 	for(n=0; n<hashtbl->size; ++n) {
 		node=hashtbl->nodes[n];
 		while(node) {
-			if(node->scope == 0 && strcmp(node->data, "func")) {
+			if(node->scope == 0 && strcmp(node->data, "#") && strcmp(node->data, "class")) {
 				if(node->init == NULL)
 					fprintf(fd, "\t%s: .space %d\n", node->key, findsize2(node, hashtbl, 0));
 				else{
@@ -297,7 +329,7 @@ void print_top(FILE* fd, HASHTBL *hashtbl){
 	for(n=0; n<hashtbl->size; ++n) {
 		node=hashtbl->nodes[n];
 		while(node) {
-			if(node->scope == 0 && !strcmp(node->data, "func") && strcmp(node->key, "main"))
+			if(node->scope == 0 && !strcmp(node->data, "#") && strcmp(node->key, "main"))
 				fprintf(fd, ", %s",node->key);
 			node = node->next;
 		}
@@ -310,7 +342,7 @@ void print_txt(FILE* fd, HASHTBL *hashtbl){
 	for(n=0; n<hashtbl->size; ++n) {
 		node=hashtbl->nodes[n];
 		while(node) {
-			if(!strcmp(node->data, "func")){
+			if(!strcmp(node->data, "#")){
 				fprintf(fd, "%s:\n", node->key);
 				fprintf(fd, "\taddi $sp, $sp, -%d\n", node->funcsize);
 				fprintf(fd, "\tsw $ra, %d($sp)\n", node->funcsize-4);

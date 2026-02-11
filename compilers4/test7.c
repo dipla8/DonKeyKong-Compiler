@@ -1,18 +1,20 @@
-class pateras_etsi{
+class pateras{
 	private:
 		int prive;
 	public:
-		int dhmosia_skula;
+		int dhmosio;
 };
-class A:pateras_etsi{
+class A:pateras{
 	private:
-		int gamw;
-		float sevo;
+		int one;
+		float two;
 	public:
-		int agria;
+		int three;
 };
 int main(){
-	A gamw;
-	gamw.dhmosia_skula = 6;
+	A one;
+	int aaaa;
+	aaaa = 0;
+	one.dhmosio = 9;
 	return 1;
 }
